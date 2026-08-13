@@ -45,6 +45,7 @@ async def developer_home(request: Request):
             "profile": settings.profile,
             "debug": settings.debug,
             "auth_enabled": settings.auth_enabled,
+            "notebooks_enabled": settings.notebooks_enabled,
             "developer_area_enabled": settings.developer_area_enabled,
             "database_url": settings.database_url,
             "redis_url": settings.redis_url or "(not set — using local runner)",

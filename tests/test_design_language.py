@@ -85,8 +85,10 @@ def test_design_language_artifacts_exist():
     spec = ROOT / "docs" / "MEAP-DESIGN-LANGUAGE.md"
     guide = ROOT / "docs" / "meap-styleguide.html"
     developer_guide = ROOT / "docs" / "DEVELOPER-CUSTOMIZATION-GUIDE.md"
+    notebook_security = ROOT / "docs" / "NOTEBOOK-SECURITY-MODEL.md"
     assert spec.is_file()
     assert guide.is_file()
     assert developer_guide.is_file()
+    assert notebook_security.is_file()
     assert "../app/platform/static/css/meap.css" in guide.read_text()
     assert "docs/DEVELOPER-CUSTOMIZATION-GUIDE.md" in (ROOT / "README.md").read_text()

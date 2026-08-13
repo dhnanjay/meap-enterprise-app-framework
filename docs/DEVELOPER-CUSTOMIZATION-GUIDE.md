@@ -6,6 +6,8 @@
 
 This guide describes the code that exists in this repository and the supported path for extending it. Read the [MEAP Design Language](MEAP-DESIGN-LANGUAGE.md) before building a new screen, and use the [live style guide](meap-styleguide.html) while implementing templates.
 
+Notebook work has a separate normative boundary. Read the [Notebook Security Model](NOTEBOOK-SECURITY-MODEL.md) before adding notebook metadata, links, dependencies, or execution. The current release contains a registry only and exposes no notebook routes or runtime.
+
 ## 1. Configuration model
 
 Application settings live in `app/settings.py`. `pydantic-settings` loads values in this order:
@@ -417,3 +419,4 @@ Navigable view state: search, filters, sort, direction, page, selected tab, and 
 - [ ] Templates follow the MEAP page archetypes and status semantics.
 - [ ] Tests cover permissions, failure states, deep links, HTMX fragments, and responsive behavior.
 - [ ] No credentials, tokens, private data, or provider claims are logged or committed.
+- [ ] Notebook work stays within the currently approved phase in `NOTEBOOK-SECURITY-MODEL.md`.

@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     # -- Authentication (Section 40) -------------------------------------
     auth_enabled: bool = True #False
 
+    # -- Notebook registry -----------------------------------------------
+    # Phase 1 is metadata only. Enabling this flag does not start, proxy,
+    # embed, or execute Marimo/Jupyter processes.
+    notebooks_enabled: bool = False
+
     # -- Diagnostics (Section 48) ----------------------------------------
     developer_area_enabled: bool = True
 

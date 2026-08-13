@@ -21,6 +21,8 @@ from app.middleware.correlation import CorrelationIdMiddleware
 from app.modules.bank_reconciliation.module import MODULE as BankReconciliationModule
 from app.modules.journal_entry_review.module import MODULE as JournalEntryReviewModule
 from app.platform.database import base as db_base
+from app.platform.audit import models as _audit_models  # noqa: F401
+from app.platform.notebooks import models as _notebook_models  # noqa: F401
 from app.platform.database.session import init_session_factory
 from app.platform.diagnostics.routes import router as diagnostics_router
 from app.platform.errors.handlers import (

@@ -174,7 +174,8 @@ meap/
 │   │   ├── database/              # SQLAlchemy base + session (§43)
 │   │   ├── jobs/                  # Job model + service (§32-34)
 │   │   ├── artifacts/             # Artifact model + storage (§35-38)
-│   │   ├── audit/                 # Audit models
+│   │   ├── audit/                 # Append-only audit events
+│   │   ├── notebooks/             # Registry + policy only; no execution
 │   │   ├── diagnostics/           # /developer area (§48)
 │   │   ├── errors/                # Error taxonomy + handlers (§44,45)
 │   │   ├── query_state/           # URL-state helpers (§URL-State)
@@ -391,6 +392,7 @@ Settings are loaded from environment variables with typed defaults (§55):
 | `MEAP_REDIS_URL` | empty | Redis/RQ connection; empty uses local background execution |
 | `MEAP_ARTIFACT_STORAGE_BACKEND` | `local` | Artifact storage backend |
 | `MEAP_ARTIFACT_STORAGE_PATH` | `./artifacts` | Local artifact directory |
+| `MEAP_NOTEBOOKS_ENABLED` | `false` | Notebook metadata capability; does not enable execution |
 
 See the [developer customization guide](docs/DEVELOPER-CUSTOMIZATION-GUIDE.md) for `.env` examples and the proposed configurable Google/Microsoft OIDC settings.
 
@@ -465,6 +467,23 @@ artifact = artifact_service.create_artifact(
 ```
 
 Artifact lineage tracks provenance: original → normalized → results → report.
+
+---
+
+## Notebook foundation
+
+MEAP includes a disabled-by-default notebook registry and security vocabulary.
+It does **not** currently launch, proxy, embed, or execute Marimo or Jupyter.
+
+The governing rule is:
+
+> Notebook edit permission is equivalent to local shell access on the MEAP server.
+
+Read [`docs/NOTEBOOK-SECURITY-MODEL.md`](docs/NOTEBOOK-SECURITY-MODEL.md) before
+adding any notebook link, application, dependency, route, or runtime behavior.
+The accepted roadmap stops at registry metadata, external links, and a future
+named use case for read-only `marimo run` applications. Editable workspaces and
+JupyterHub are deferred.
 
 ---
 
