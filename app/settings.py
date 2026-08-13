@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     profile: Literal["local", "development", "test", "production"] = "local"
 
     # -- Application ------------------------------------------------------
-    app_name: str = "MEAP"
+    app_name: str = "Reference App"#"MEAP"
     debug: bool = False
     secret_key: str = "dev-secret-change-in-production"
 
@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     redis_url: str = ""
 
     # -- Authentication (Section 40) -------------------------------------
-    auth_enabled: bool = False
+    auth_enabled: bool = True #False
 
     # -- Diagnostics (Section 48) ----------------------------------------
     developer_area_enabled: bool = True
