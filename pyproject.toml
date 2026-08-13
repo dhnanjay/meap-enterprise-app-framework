@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "meap"
+version = "1.0.0"
+description = "Modular Enterprise Application Platform - a server-first, configuration-assembled starter platform"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "jinja2>=3.1.4",
+    "sqlalchemy>=2.0.36",
+    "alembic>=1.14.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
+    "python-multipart>=0.0.12",
+    "itsdangerous>=2.2.0",
+    "structlog>=24.4.0",
+    "aiofiles>=24.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.28.0",
+]
+worker = [
+    "redis>=5.2.0",
+    "rq>=2.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

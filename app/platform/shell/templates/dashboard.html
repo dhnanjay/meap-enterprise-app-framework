@@ -1,0 +1,72 @@
+{# dashboard.html — fragment + full-page content for the home route #}
+<div class="meap-page meap-overview">
+  <div class="meap-page-header">
+    <div>
+      <div class="meap-eyebrow">Enterprise applications</div>
+      <h1 class="meap-page-title">Workspaces</h1>
+      <p class="meap-page-subtitle">Open a work queue or inspect platform status.</p>
+    </div>
+  </div>
+
+  <div class="meap-card-grid">
+    {% for group in navigation %}
+    <section class="meap-card meap-module-card">
+      <div class="meap-card-header">
+        <h2 class="meap-card-title">{{ group['group'] }}</h2>
+      </div>
+      <div class="meap-card-body">
+        <ul class="meap-list">
+          {% for item in group['items'] %}
+          <li class="meap-list-item">
+            <a href="{{ item.href }}"
+               hx-get="{{ item.href }}" hx-target="#main-content" hx-push-url="true"
+               class="meap-module-link">
+               <span>
+                 <strong>{{ item.label }}</strong>
+                 <small>Open workspace</small>
+               </span>
+            </a>
+            <span class="meap-list-arrow" aria-hidden="true">→</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+
+  {% if not navigation %}
+  <div class="meap-empty-state">
+    <div class="meap-empty-state-title">No Modules Registered</div>
+    <p>Register modules in <code>app/modules/__init__.py</code>.</p>
+  </div>
+  {% endif %}
+
+  <section class="meap-info-panel meap-platform-status">
+    <div class="meap-section-heading">
+      <div>
+        <div class="meap-eyebrow">System</div>
+        <h2 class="meap-card-title">Platform status</h2>
+      </div>
+      <span class="meap-health"><span aria-hidden="true"></span> Operational</span>
+    </div>
+    <div class="meap-info-row">
+      <span>Registered modules</span>
+      <strong>{{ modules | length if modules else 0 }}</strong>
+    </div>
+    <div class="meap-info-row">
+      <span>Registered permissions</span>
+      <strong>{{ all_permissions | length if all_permissions else 0 }}</strong>
+    </div>
+    <div class="meap-info-row">
+      <span>Profile</span>
+      <span class="meap-chip">{{ settings.profile if settings else 'local' }}</span>
+    </div>
+    {% if correlation_id %}
+    <div class="meap-info-row">
+      <span>Correlation ID</span>
+      <code class="meap-correlation">{{ correlation_id }}</code>
+    </div>
+    {% endif %}
+  </section>
+</div>

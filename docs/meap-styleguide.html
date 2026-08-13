@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MEAP Design Language — Quiet Enterprise</title>
+  <link rel="stylesheet" href="../app/platform/static/css/meap.css">
+  <style>
+    .sg-wrap{max-width:1180px;margin:0 auto;padding:var(--meap-space-6) var(--meap-space-5) var(--meap-space-7)}
+    .sg-head{padding-bottom:var(--meap-space-5);border-bottom:1px solid var(--meap-border);margin-bottom:var(--meap-space-6)}
+    .sg-head h1{font-size:var(--meap-size-xl);font-weight:var(--meap-weight-semibold);margin-bottom:var(--meap-space-2)}
+    .sg-head p,.sg-rule{max-width:78ch;color:var(--meap-text-secondary)}
+    .sg-section{margin-bottom:var(--meap-space-7)}
+    .sg-section>h2{font-size:var(--meap-size-md);margin-bottom:var(--meap-space-1)}
+    .sg-rule{margin-bottom:var(--meap-space-4);font-size:var(--meap-size-sm)}
+    .sg-demo{padding:var(--meap-space-5);border:1px solid var(--meap-border);border-radius:var(--meap-radius-lg);background:var(--meap-surface)}
+    .sg-demo--canvas{background:var(--meap-canvas)}
+    .sg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:var(--meap-space-3)}
+    .sg-swatch{overflow:hidden;border:1px solid var(--meap-border);border-radius:var(--meap-radius-md);background:var(--meap-surface)}
+    .sg-swatch-color{height:44px;border-bottom:1px solid var(--meap-border)}
+    .sg-swatch-meta{padding:var(--meap-space-2);font-size:var(--meap-size-xs)}
+    .sg-swatch-meta code{display:block;color:var(--meap-text-muted);font-size:var(--meap-size-2xs)}
+    .sg-type-row{display:flex;align-items:baseline;gap:var(--meap-space-4);padding:var(--meap-space-2) 0;border-bottom:1px solid var(--meap-border-subtle)}
+    .sg-spec{width:210px;flex:none;color:var(--meap-text-muted);font:var(--meap-size-2xs) var(--meap-font-mono)}
+    .sg-do{display:grid;grid-template-columns:1fr 1fr;gap:var(--meap-space-4);margin-top:var(--meap-space-4)}
+    .sg-do>div{padding:var(--meap-space-4);border:1px solid var(--meap-border);border-left-width:3px;border-radius:var(--meap-radius-md);background:var(--meap-surface)}
+    .sg-do-good{border-left-color:var(--meap-success-fg)!important}.sg-do-bad{border-left-color:var(--meap-critical-fg)!important}
+    .sg-do h3{font-size:var(--meap-size-sm);margin-bottom:var(--meap-space-2)}
+    .sg-do ul{padding-left:var(--meap-space-4);color:var(--meap-text-secondary);font-size:var(--meap-size-sm)}
+    .sg-stack{display:flex;flex-direction:column;gap:var(--meap-space-3)}
+    .sg-banner{padding:var(--meap-space-3) var(--meap-space-4);border:1px solid var(--meap-border);border-left-width:3px;border-radius:var(--meap-radius-md)}
+    .sg-banner-attention{border-color:var(--meap-attention-border);border-left-color:var(--meap-attention-fg);background:var(--meap-attention-bg)}
+    .sg-banner-critical{border-color:var(--meap-critical-border);border-left-color:var(--meap-critical-fg);background:var(--meap-critical-bg)}
+    @media(max-width:720px){.sg-do{grid-template-columns:1fr}.sg-type-row{align-items:flex-start;flex-direction:column;gap:0}.sg-spec{width:auto}}
+  </style>
+</head>
+<body data-density="compact">
+<main class="sg-wrap">
+  <header class="sg-head">
+    <p class="meap-eyebrow">MEAP platform · Design layer v1</p>
+    <h1>Quiet Enterprise</h1>
+    <p>The visual contract for every MEAP module. This page links directly to <code>app/platform/static/css/meap.css</code>; component examples therefore render from the implementation rather than a copied approximation.</p>
+  </header>
+
+  <section class="sg-section">
+    <h2>1 · Color</h2>
+    <p class="sg-rule">Blue promises interaction. Status hue communicates record state. Weight, size, spacing, and hairlines create hierarchy.</p>
+    <div class="sg-grid">
+      <div class="sg-swatch"><div class="sg-swatch-color" style="background:var(--meap-canvas)"></div><div class="sg-swatch-meta">Canvas<code>#F6F7F9</code></div></div>
+      <div class="sg-swatch"><div class="sg-swatch-color" style="background:var(--meap-surface)"></div><div class="sg-swatch-meta">Surface<code>#FFFFFF</code></div></div>
+      <div class="sg-swatch"><div class="sg-swatch-color" style="background:var(--meap-surface-sunken)"></div><div class="sg-swatch-meta">Sunken<code>#F1F3F5</code></div></div>
+      <div class="sg-swatch"><div class="sg-swatch-color" style="background:var(--meap-border)"></div><div class="sg-swatch-meta">Border<code>#E3E6EA</code></div></div>
+      <div class="sg-swatch"><div class="sg-swatch-color" style="background:var(--meap-text)"></div><div class="sg-swatch-meta">Text<code>#101519</code></div></div>
+      <div class="sg-swatch"><div class="sg-swatch-color" style="background:var(--meap-accent)"></div><div class="sg-swatch-meta">Interactive accent<code>#1B5FCC</code></div></div>
+    </div>
+    <div class="sg-demo" style="margin-top:var(--meap-space-4);padding:0">
+      <table class="meap-table">
+        <thead><tr><th>Token</th><th>Badge</th><th>Meaning</th><th>Examples</th></tr></thead>
+        <tbody>
+          <tr><td class="meap-mono">neutral</td><td><span class="meap-badge">Draft</span></td><td>No work underway</td><td>Draft · Cancelled</td></tr>
+          <tr><td class="meap-mono">progress</td><td><span class="meap-badge meap-badge--progress">Running</span></td><td>Work underway</td><td>Queued · In review</td></tr>
+          <tr><td class="meap-mono">success</td><td><span class="meap-badge meap-badge--success">Cleared</span></td><td>Resolved</td><td>Matched · Approved</td></tr>
+          <tr><td class="meap-mono">attention</td><td><span class="meap-badge meap-badge--attention">Unmatched</span></td><td>A person must act</td><td>Open exception · Overdue</td></tr>
+          <tr><td class="meap-mono">critical</td><td><span class="meap-badge meap-badge--critical">Failed</span></td><td>The system failed</td><td>Job · Integration error</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="sg-section">
+    <h2>2 · Typography</h2>
+    <p class="sg-rule">The UI face is for reading. Mono is reserved for exact machine identity—not money and not dates.</p>
+    <div class="sg-demo">
+      <div class="sg-type-row"><span class="sg-spec">object ID · mono 28/500</span><span class="meap-object-id">BR-FLOW-001</span></div>
+      <div class="sg-type-row"><span class="sg-spec">page title · 20/600</span><span class="meap-page-title">Bank Reconciliation</span></div>
+      <div class="sg-type-row"><span class="sg-spec">body · 14/400</span><span>Every screen has a stable URL and every figure aligns.</span></div>
+      <div class="sg-type-row"><span class="sg-spec">machine identity</span><span class="meap-mono">CORR-3C9E8EAA187E · MISSING_REQUIRED_COLUMN</span></div>
+      <div class="sg-type-row"><span class="sg-spec">money · tabular UI face</span><span class="meap-num">$2,000.00 · $48,000.00</span></div>
+    </div>
+  </section>
+
+  <section class="sg-section">
+    <h2>3 · Object page</h2>
+    <p class="sg-rule">Identity, status, defining facts, URL-backed tabs, then the work. Four facts occupy one restrained strip.</p>
+    <div class="sg-demo sg-demo--canvas">
+      <nav class="meap-breadcrumb"><a href="#">Bank Reconciliation</a><span class="meap-breadcrumb-sep">/</span><span>BR-FLOW-001</span></nav>
+      <div class="meap-page-header">
+        <div><p class="meap-eyebrow">Bank reconciliation</p><h1 class="meap-object-id">BR-FLOW-001</h1><p class="meap-page-subtitle">Flow Account · February 2026</p></div>
+        <div class="meap-page-actions"><span class="meap-badge">Draft</span><button class="meap-btn">Export workbook</button><button class="meap-btn meap-btn--primary">Submit for review</button></div>
+      </div>
+      <div class="meap-facts">
+        <div class="meap-fact"><span class="meap-fact-label">Statement balance</span><span class="meap-fact-value meap-num">$50,000.00</span></div>
+        <div class="meap-fact"><span class="meap-fact-label">Book balance</span><span class="meap-fact-value meap-num">$48,000.00</span></div>
+        <div class="meap-fact"><span class="meap-fact-label">Unexplained difference</span><span class="meap-fact-value meap-fact-value--attention meap-num">$2,000.00</span></div>
+        <div class="meap-fact"><span class="meap-fact-label">Open exceptions</span><span class="meap-fact-value meap-num">3</span></div>
+      </div>
+      <nav class="meap-tabs"><a class="meap-tab" href="#">Overview</a><a class="meap-tab" href="#" aria-selected="true">Exceptions <span class="meap-tab-count">3</span></a><a class="meap-tab" href="#">Evidence</a></nav>
+      <div class="meap-info-panel">
+        <div class="meap-info-row"><span>Account number</span><strong class="meap-mono">10245-0001</strong></div>
+        <div class="meap-info-row"><span>Created</span><strong>2026-08-13 19:17 UTC</strong></div>
+        <div class="meap-info-row"><span>Processing job</span><strong class="meap-muted">Not yet run</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sg-section">
+    <h2>4 · List report</h2>
+    <p class="sg-rule">Filters write to the URL. Figures align right. Compact rows expose the queue instead of padding.</p>
+    <div class="sg-demo sg-demo--canvas">
+      <div class="meap-page-header"><div><p class="meap-eyebrow">Bank reconciliation</p><h1 class="meap-page-title">Exceptions</h1></div><button class="meap-btn">Export</button></div>
+      <form class="meap-filter-bar">
+        <div class="meap-filter-item"><label for="status">Status</label><select id="status" class="meap-select"><option>Unmatched</option></select></div>
+        <div class="meap-filter-item meap-filter-item--grow"><label for="query">Description</label><input id="query" class="meap-input" value="deposit"></div>
+        <button class="meap-btn meap-btn--primary">Apply filters</button><button class="meap-btn">Clear</button>
+      </form>
+      <div class="meap-table-wrapper">
+        <table class="meap-table">
+          <thead><tr><th>Item</th><th>Description</th><th>Date</th><th class="meap-col--num">Amount</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td class="meap-mono">EX-00412</td><td>Deposit in transit — lockbox batch 88213</td><td>2026-02-27</td><td class="meap-col--num meap-num">12,400.00</td><td><span class="meap-badge meap-badge--attention">Unmatched</span></td></tr>
+            <tr><td class="meap-mono">EX-00415</td><td>Bank fee not booked</td><td>2026-02-28</td><td class="meap-col--num meap-num">(85.00)</td><td><span class="meap-badge meap-badge--progress">In review</span></td></tr>
+            <tr><td class="meap-mono">EX-00402</td><td>Wire in — customer 4471</td><td>2026-02-11</td><td class="meap-col--num meap-num">31,000.00</td><td><span class="meap-badge meap-badge--success">Cleared</span></td></tr>
+          </tbody>
+        </table>
+        <div class="meap-pagination"><span>Showing 1–3 of 128</span><span>Page 1 of 43</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sg-section">
+    <h2>5 · Controls and feedback</h2>
+    <p class="sg-rule">One primary action per region. Destructive actions are outlines. Errors identify the failure and the next action.</p>
+    <div class="sg-demo sg-stack">
+      <div class="meap-inline-actions"><button class="meap-btn meap-btn--primary">Submit for review</button><button class="meap-btn">Export workbook</button><button class="meap-btn meap-btn--danger">Delete reconciliation</button></div>
+      <div class="sg-banner sg-banner-attention"><strong>3 exceptions need an explanation.</strong> The reconciliation cannot be submitted until each has a disposition.</div>
+      <div class="sg-banner sg-banner-critical"><strong>The source workbook is missing a required column.</strong> Add <span class="meap-mono">value_date</span> and upload again. <span class="meap-mono">ERR-39218</span></div>
+    </div>
+    <div class="sg-do">
+      <div class="sg-do-good"><h3>Do</h3><ul><li>Use amber for unexplained differences.</li><li>Use mono for support identifiers.</li><li>Leave most of the screen neutral.</li></ul></div>
+      <div class="sg-do-bad"><h3>Don't</h3><ul><li>Use red for normal accounting findings.</li><li>Use blue on inert labels.</li><li>Add a sixth status color.</li></ul></div>
+    </div>
+  </section>
+
+  <section class="sg-section">
+    <h2>6 · Writing and rules</h2>
+    <div class="sg-demo" style="padding:0">
+      <table class="meap-table">
+        <thead><tr><th>Avoid</th><th>Write</th><th>Reason</th></tr></thead>
+        <tbody>
+          <tr><td>Good to see you.</td><td>Workspaces</td><td>Name the work surface.</td></tr>
+          <tr><td>Submit</td><td>Submit for review</td><td>State the outcome.</td></tr>
+          <tr><td>Total exceptions</td><td>Open exceptions</td><td>Name the actionable set.</td></tr>
+          <tr><td>Difference</td><td>Unexplained difference</td><td>Name the accounting meaning.</td></tr>
+          <tr><td>Something went wrong.</td><td>The source workbook is missing a required column.</td><td>Make support possible.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="sg-do">
+      <div class="sg-do-good"><h3>Non-negotiable</h3><ul><li>Three page archetypes.</li><li>36/44px density only.</li><li>Tabular, right-aligned figures.</li><li>Visible focus and native fallback.</li></ul></div>
+      <div class="sg-do-bad"><h3>Out of scope in v1</h3><ul><li>Dark mode.</li><li>A third density.</li><li>Decorative animation.</li><li>A general icon set.</li></ul></div>
+    </div>
+  </section>
+
+  <footer class="meap-muted">MEAP design layer v1 · Quiet Enterprise · normative rules in <code>MEAP-DESIGN-LANGUAGE.md</code></footer>
+</main>
+</body>
+</html>

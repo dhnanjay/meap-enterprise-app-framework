@@ -1,0 +1,74 @@
+{# bank_reconciliation/upload.html — Create a new reconciliation run
+   Uses semantic HTML form per Section 21.
+#}
+<div class="meap-page meap-object-page" id="br-upload">
+  <div class="meap-breadcrumb">
+    <a href="/bank-recon"
+       {% if is_htmx %}hx-get="/bank-recon" hx-target="#main-content" hx-push-url="true"{% endif %}>Bank Reconciliation</a>
+    <span class="meap-breadcrumb-sep">/</span>
+    <span>New Reconciliation</span>
+  </div>
+
+  <div class="meap-page-header">
+    <div>
+      <h1 class="meap-page-title">New Reconciliation</h1>
+      <p class="meap-page-subtitle">Create a bank reconciliation run</p>
+    </div>
+  </div>
+
+  <div class="meap-card meap-form-card">
+    <div class="meap-card-body">
+      <form method="post" action="/bank-recon"
+            {% if is_htmx %}hx-post="/bank-recon" hx-target="#main-content" hx-push-url="true"{% endif %}
+            class="meap-form">
+
+        <div class="meap-form-field">
+          <label for="reference">Reference <span class="meap-required">*</span></label>
+          <input type="text" id="reference" name="reference" required
+                 placeholder="BR-2026-001" class="meap-input">
+        </div>
+
+        <div class="meap-form-field">
+          <label for="account_name">Account Name <span class="meap-required">*</span></label>
+          <input type="text" id="account_name" name="account_name" required
+                 placeholder="Operating Account" class="meap-input">
+        </div>
+
+        <div class="meap-form-field">
+          <label for="account_number">Account Number</label>
+          <input type="text" id="account_number" name="account_number"
+                 placeholder="10245" class="meap-input">
+        </div>
+
+        <div class="meap-form-field">
+          <label for="period">Period <span class="meap-required">*</span></label>
+          <input type="text" id="period" name="period" required
+                 placeholder="2026-07" class="meap-input">
+        </div>
+
+        <div class="meap-form-row">
+          <div class="meap-form-field">
+            <label for="statement_balance">Statement Balance</label>
+            <input type="number" step="0.01" id="statement_balance" name="statement_balance"
+                   value="0" class="meap-input">
+          </div>
+
+          <div class="meap-form-field">
+            <label for="book_balance">Book Balance</label>
+            <input type="number" step="0.01" id="book_balance" name="book_balance"
+                   value="0" class="meap-input">
+          </div>
+        </div>
+
+        <div class="meap-form-actions">
+          <button type="submit" class="meap-btn meap-btn--primary">Create Reconciliation</button>
+          <a href="/bank-recon"
+             class="meap-btn"
+             {% if is_htmx %}hx-get="/bank-recon" hx-target="#main-content" hx-push-url="true"{% endif %}>
+            Cancel
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

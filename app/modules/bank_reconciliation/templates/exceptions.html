@@ -1,0 +1,149 @@
+{# bank_reconciliation/exceptions.html — Full filter/sort/paginate exceptions view
+   The URL is canonical: /bank-recon/BR123/exceptions?status=unmatched&sort=amount&direction=desc&page=3
+   Uses semantic HTML per Section 21.
+#}
+<div class="meap-page meap-list-report meap-subobject-page" id="br-exceptions">
+  <div class="meap-breadcrumb">
+    <a href="/bank-recon"
+       {% if is_htmx %}hx-get="/bank-recon" hx-target="#main-content" hx-push-url="true"{% endif %}>Bank Reconciliation</a>
+    <span class="meap-breadcrumb-sep">/</span>
+    <a href="/bank-recon/{{ vm.reconciliation.reconciliation_id }}"
+       {% if is_htmx %}hx-get="/bank-recon/{{ vm.reconciliation.reconciliation_id }}" hx-target="#main-content" hx-push-url="true"{% endif %}>{{ vm.reconciliation.reference }}</a>
+    <span class="meap-breadcrumb-sep">/</span>
+    <span>Exceptions</span>
+  </div>
+
+  <div class="meap-page-header">
+    <div>
+      <h1 class="meap-page-title">{{ vm.reconciliation.reference }} — Exceptions</h1>
+      <p class="meap-page-subtitle">{{ vm.reconciliation.account_name }} · {{ vm.reconciliation.period }}</p>
+    </div>
+    <div class="meap-page-actions">
+      <a href="/bank-recon/{{ vm.reconciliation.reconciliation_id }}"
+         class="meap-btn"
+         {% if is_htmx %}hx-get="/bank-recon/{{ vm.reconciliation.reconciliation_id }}" hx-target="#main-content" hx-push-url="true"{% endif %}>
+        ← Back to Overview
+      </a>
+    </div>
+  </div>
+
+  {# ── Filter form — GET, all state in URL (Section: Filtering) ───────────── #}
+  <form method="get"
+        action="/bank-recon/{{ vm.reconciliation.reconciliation_id }}/exceptions"
+        class="meap-filter-bar"
+        {% if is_htmx %}hx-get="/bank-recon/{{ vm.reconciliation.reconciliation_id }}/exceptions"
+        hx-target="#br-exceptions" hx-push-url="true"{% endif %}>
+    <div class="meap-filter-item meap-filter-item--grow">
+      <label>Search</label>
+      <input type="text" name="q" value="{{ query.q or '' }}" placeholder="Search descriptions…" class="meap-input">
+    </div>
+    <div class="meap-filter-item">
+      <label>Status</label>
+      <select name="status" class="meap-select">
+        <option value="">All Statuses</option>
+        {% for s in ['UNMATCHED', 'IN_REVIEW', 'RESOLVED', 'ESCALATED'] %}
+        <option value="{{ s }}" {{ 'selected' if query.status == s else '' }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="meap-filter-item">
+      <label>Account</label>
+      <input type="text" name="account" value="{{ query.account or '' }}" placeholder="Account…" class="meap-input">
+    </div>
+    <div class="meap-filter-item">
+      <label>Min Amount</label>
+      <input type="number" step="0.01" name="min_amount" value="{{ query.min_amount or '' }}" placeholder="0.00" class="meap-input">
+    </div>
+    <button type="submit" class="meap-btn meap-btn--primary">Filter</button>
+    <a href="/bank-recon/{{ vm.reconciliation.reconciliation_id }}/exceptions"
+       class="meap-btn"
+       {% if is_htmx %}hx-get="/bank-recon/{{ vm.reconciliation.reconciliation_id }}/exceptions"
+       hx-target="#br-exceptions" hx-push-url="true"{% endif %}>
+      Reset
+    </a>
+  </form>
+
+  {% if query.q or query.status or query.account or query.min_amount %}
+  <div class="meap-active-filters" aria-label="Applied filters">
+    <span class="meap-active-filters-label">Applied</span>
+    {% if query.q %}<a class="meap-filter-pill" href="{{ query_url(current_query, remove=['q'], reset={'page': 1}) }}" hx-get="{{ query_url(current_query, remove=['q'], reset={'page': 1}) }}" hx-target="#br-exceptions" hx-push-url="true">Search: {{ query.q }} <span aria-hidden="true">×</span></a>{% endif %}
+    {% if query.status %}<a class="meap-filter-pill" href="{{ query_url(current_query, remove=['status'], reset={'page': 1}) }}" hx-get="{{ query_url(current_query, remove=['status'], reset={'page': 1}) }}" hx-target="#br-exceptions" hx-push-url="true">Status: {{ query.status.value }} <span aria-hidden="true">×</span></a>{% endif %}
+    {% if query.account %}<a class="meap-filter-pill" href="{{ query_url(current_query, remove=['account'], reset={'page': 1}) }}" hx-get="{{ query_url(current_query, remove=['account'], reset={'page': 1}) }}" hx-target="#br-exceptions" hx-push-url="true">Account: {{ query.account }} <span aria-hidden="true">×</span></a>{% endif %}
+    {% if query.min_amount %}<a class="meap-filter-pill" href="{{ query_url(current_query, remove=['min_amount'], reset={'page': 1}) }}" hx-get="{{ query_url(current_query, remove=['min_amount'], reset={'page': 1}) }}" hx-target="#br-exceptions" hx-push-url="true">Minimum: {{ query.min_amount }} <span aria-hidden="true">×</span></a>{% endif %}
+  </div>
+  {% endif %}
+
+  {# ── Exceptions table ──────────────────────────────────────────────────── #}
+  <div class="meap-table-wrapper">
+    <table class="meap-table">
+      <thead>
+        <tr>
+          <th>
+            <a href="?{{ query_url(current_query, set_={'sort': 'date', 'direction': 'asc' if query.sort == 'date' and query.is_desc else 'desc', 'page': 1}) }}"
+               {% if is_htmx %}hx-get="?{{ query_url(current_query, set_={'sort': 'date', 'direction': 'asc' if query.sort == 'date' and query.is_desc else 'desc', 'page': 1}) }}"
+               hx-target="#br-exceptions" hx-push-url="true"{% endif %}
+               class="{{ 'active' if query.sort == 'date' else '' }}">
+              Date
+              {% if query.sort == 'date' %}<span class="sort-icon sort-active">{{ '▲' if not query.is_desc else '▼' }}</span>{% endif %}
+            </a>
+          </th>
+          <th>Description</th>
+          <th class="meap-col--num">
+            <a href="?{{ query_url(current_query, set_={'sort': 'amount', 'direction': 'asc' if query.sort == 'amount' and query.is_desc else 'desc', 'page': 1}) }}"
+               {% if is_htmx %}hx-get="?{{ query_url(current_query, set_={'sort': 'amount', 'direction': 'asc' if query.sort == 'amount' and query.is_desc else 'desc', 'page': 1}) }}"
+               hx-target="#br-exceptions" hx-push-url="true"{% endif %}
+               class="{{ 'active' if query.sort == 'amount' else '' }}">
+              Amount
+              {% if query.sort == 'amount' %}<span class="sort-icon sort-active">{{ '▲' if not query.is_desc else '▼' }}</span>{% endif %}
+            </a>
+          </th>
+          <th>Account</th>
+          <th>Status</th>
+          <th class="meap-col--fit">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if vm.items %}
+          {% for row in vm.items %}
+            {% include "bank_reconciliation/fragments/exception_row.html" %}
+          {% endfor %}
+        {% else %}
+        <tr>
+          <td colspan="6">
+            <div class="meap-empty-state">
+              <div class="meap-empty-state-title">No exceptions match these filters</div>
+            </div>
+          </td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+
+    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {% if vm.total_pages > 1 %}
+    <div class="meap-pagination">
+      <span class="meap-pagination-info">Page {{ vm.page }} of {{ vm.total_pages }} ({{ vm.total_count }} total)</span>
+      <div class="meap-pagination-controls">
+        {% if query.page > 1 %}
+        <a href="{{ query_url(current_query, set_={'page': query.page - 1}) }}"
+           {% if is_htmx %}hx-get="{{ query_url(current_query, set_={'page': query.page - 1}) }}"
+           hx-target="#br-exceptions" hx-push-url="true"{% endif %}>
+          ← Previous
+        </a>
+        {% else %}
+        <span class="disabled">← Previous</span>
+        {% endif %}
+        {% if query.page < vm.total_pages %}
+        <a href="{{ query_url(current_query, set_={'page': query.page + 1}) }}"
+           {% if is_htmx %}hx-get="{{ query_url(current_query, set_={'page': query.page + 1}) }}"
+           hx-target="#br-exceptions" hx-push-url="true"{% endif %}>
+          Next →
+        </a>
+        {% else %}
+        <span class="disabled">Next →</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>

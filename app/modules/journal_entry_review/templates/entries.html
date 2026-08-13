@@ -1,0 +1,139 @@
+{# journal_entry_review/entries.html — URL-driven entries view with filters
+   Uses semantic HTML per Section 21.
+#}
+<div class="meap-page meap-list-report meap-subobject-page" id="je-entries">
+  <div class="meap-breadcrumb">
+    <a href="/je-review"
+       {% if is_htmx %}hx-get="/je-review" hx-target="#main-content" hx-push-url="true"{% endif %}>JE Review</a>
+    <span class="meap-breadcrumb-sep">/</span>
+    <a href="/je-review/{{ vm.review.review_id }}"
+       {% if is_htmx %}hx-get="/je-review/{{ vm.review.review_id }}" hx-target="#main-content" hx-push-url="true"{% endif %}>{{ vm.review.engagement }}</a>
+    <span class="meap-breadcrumb-sep">/</span>
+    <span>Entries</span>
+  </div>
+
+  <div class="meap-page-header">
+    <div>
+      <h1 class="meap-page-title">{{ vm.review.engagement }} — Entries</h1>
+      <p class="meap-page-subtitle">{{ vm.review.total_entries }} entries · {{ vm.review.flagged_count }} flagged</p>
+    </div>
+    <div class="meap-page-actions">
+      <a href="/je-review/{{ vm.review.review_id }}"
+         class="meap-btn"
+         {% if is_htmx %}hx-get="/je-review/{{ vm.review.review_id }}" hx-target="#main-content" hx-push-url="true"{% endif %}>
+        ← Back to Overview
+      </a>
+    </div>
+  </div>
+
+  {# ── Filter form (URL is the state) ─────────────────────────────────────── #}
+  <form method="get"
+        action="/je-review/{{ vm.review.review_id }}/entries"
+        class="meap-filter-bar"
+        {% if is_htmx %}hx-get="/je-review/{{ vm.review.review_id }}/entries"
+        hx-target="#je-entries" hx-push-url="true"{% endif %}>
+    <div class="meap-filter-item meap-filter-item--grow">
+      <label>Search</label>
+      <input type="text" name="q" value="{{ query.q or '' }}" placeholder="Search descriptions…" class="meap-input">
+    </div>
+    <div class="meap-filter-item">
+      <label>Status</label>
+      <select name="status" class="meap-select">
+        <option value="">All</option>
+        {% for s in ['UNREVIEWED', 'IN_REVIEW', 'FLAGGED', 'APPROVED', 'REJECTED'] %}
+        <option value="{{ s }}" {{ 'selected' if query.status == s else '' }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="meap-filter-item">
+      <label>Risk Level</label>
+      <select name="risk_level" class="meap-select">
+        <option value="">All</option>
+        {% for r in ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] %}
+        <option value="{{ r }}" {{ 'selected' if query.risk_level == r else '' }}>{{ r }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="meap-filter-item">
+      <label>Min Amount</label>
+      <input type="number" step="0.01" name="min_amount" value="{{ query.min_amount or '' }}" placeholder="0.00" class="meap-input">
+    </div>
+    <button type="submit" class="meap-btn meap-btn--primary">Filter</button>
+    <a href="/je-review/{{ vm.review.review_id }}/entries"
+       class="meap-btn"
+       {% if is_htmx %}hx-get="/je-review/{{ vm.review.review_id }}/entries"
+       hx-target="#je-entries" hx-push-url="true"{% endif %}>
+      Reset
+    </a>
+  </form>
+
+  {% if query.q or query.status or query.risk_level or query.min_amount %}
+  <div class="meap-active-filters" aria-label="Applied filters">
+    <span class="meap-active-filters-label">Applied</span>
+    {% if query.q %}<a class="meap-filter-pill" href="{{ query_url(current_query, remove=['q'], reset={'page': 1}) }}" hx-get="{{ query_url(current_query, remove=['q'], reset={'page': 1}) }}" hx-target="#je-entries" hx-push-url="true">Search: {{ query.q }} <span aria-hidden="true">×</span></a>{% endif %}
+    {% if query.status %}<a class="meap-filter-pill" href="{{ query_url(current_query, remove=['status'], reset={'page': 1}) }}" hx-get="{{ query_url(current_query, remove=['status'], reset={'page': 1}) }}" hx-target="#je-entries" hx-push-url="true">Status: {{ query.status.value }} <span aria-hidden="true">×</span></a>{% endif %}
+    {% if query.risk_level %}<a class="meap-filter-pill" href="{{ query_url(current_query, remove=['risk_level'], reset={'page': 1}) }}" hx-get="{{ query_url(current_query, remove=['risk_level'], reset={'page': 1}) }}" hx-target="#je-entries" hx-push-url="true">Risk: {{ query.risk_level.value }} <span aria-hidden="true">×</span></a>{% endif %}
+    {% if query.min_amount %}<a class="meap-filter-pill" href="{{ query_url(current_query, remove=['min_amount'], reset={'page': 1}) }}" hx-get="{{ query_url(current_query, remove=['min_amount'], reset={'page': 1}) }}" hx-target="#je-entries" hx-push-url="true">Minimum: {{ query.min_amount }} <span aria-hidden="true">×</span></a>{% endif %}
+  </div>
+  {% endif %}
+
+  {# ── Entries table ─────────────────────────────────────────────────────── #}
+  <div class="meap-table-wrapper">
+    <table class="meap-table">
+      <thead>
+        <tr>
+          <th>JE Number</th>
+          <th>Account</th>
+          <th>Description</th>
+          <th>Posting Date</th>
+          <th class="meap-col--num">Amount</th>
+          <th>Risk</th>
+          <th>Status</th>
+          <th class="meap-col--fit">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if vm.items %}
+          {% for row in vm.items %}
+            {% include "journal_entry_review/fragments/entry_row.html" %}
+          {% endfor %}
+        {% else %}
+        <tr>
+          <td colspan="8">
+            <div class="meap-empty-state">
+              <div class="meap-empty-state-title">No entries match these filters</div>
+            </div>
+          </td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+
+    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {% if vm.total_pages > 1 %}
+    <div class="meap-pagination">
+      <span class="meap-pagination-info">Page {{ vm.page }} of {{ vm.total_pages }} ({{ vm.total_count }} total)</span>
+      <div class="meap-pagination-controls">
+        {% if query.page > 1 %}
+        <a href="{{ query_url(current_query, set_={'page': query.page - 1}) }}"
+           {% if is_htmx %}hx-get="{{ query_url(current_query, set_={'page': query.page - 1}) }}"
+           hx-target="#je-entries" hx-push-url="true"{% endif %}>
+          ← Previous
+        </a>
+        {% else %}
+        <span class="disabled">← Previous</span>
+        {% endif %}
+        {% if query.page < vm.total_pages %}
+        <a href="{{ query_url(current_query, set_={'page': query.page + 1}) }}"
+           {% if is_htmx %}hx-get="{{ query_url(current_query, set_={'page': query.page + 1}) }}"
+           hx-target="#je-entries" hx-push-url="true"{% endif %}>
+          Next →
+        </a>
+        {% else %}
+        <span class="disabled">Next →</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>

@@ -1,0 +1,59 @@
+{# journal_entry_review/fragments/entry_row.html — Single entry row
+   Returned as fragment after flag/approve/reject actions.
+   Uses semantic HTML per Section 21.
+   Expects: row (EntryRowVM)
+#}
+<tr id="entry-{{ row.entry_id }}">
+  <td class="meap-mono">{{ row.je_number }}</td>
+  <td class="meap-mono">{{ row.account }}</td>
+  <td>{{ row.description }}</td>
+  <td>{{ row.posting_date.strftime('%Y-%m-%d') }}</td>
+  <td class="meap-col--num meap-num">{{ "${:,.2f}".format(row.amount) }}</td>
+  <td>
+    {% if row.risk_level.value == 'CRITICAL' %}
+      <span class="meap-badge meap-badge--attention">{{ row.risk_level.value }}</span>
+    {% elif row.risk_level.value == 'HIGH' %}
+      <span class="meap-badge meap-badge--attention">{{ row.risk_level.value }}</span>
+    {% elif row.risk_level.value == 'MEDIUM' %}
+      <span class="meap-badge">{{ row.risk_level.value }}</span>
+    {% else %}
+      <span class="meap-badge">{{ row.risk_level.value }}</span>
+    {% endif %}
+  </td>
+  <td>
+    {% if row.status.value == 'APPROVED' %}
+      <span class="meap-badge meap-badge--success">{{ row.status.value }}</span>
+    {% elif row.status.value in ('FLAGGED', 'REJECTED') %}
+      <span class="meap-badge {{ 'meap-badge--critical' if row.status.value == 'REJECTED' else 'meap-badge--attention' }}">{{ row.status.value }}</span>
+    {% else %}
+      <span class="meap-badge">{{ row.status.value }}</span>
+    {% endif %}
+  </td>
+  <td>
+    {% if row.status.value == 'UNREVIEWED' %}
+    <div class="meap-inline-actions">
+      <form hx-post="/je-review/entries/{{ row.entry_id }}/flag"
+            hx-target="#entry-{{ row.entry_id }}" hx-swap="outerHTML">
+        <button type="submit" class="meap-btn meap-btn--small">Flag</button>
+      </form>
+      <form hx-post="/je-review/entries/{{ row.entry_id }}/approve"
+            hx-target="#entry-{{ row.entry_id }}" hx-swap="outerHTML">
+        <button type="submit" class="meap-btn meap-btn--small">Approve</button>
+      </form>
+    </div>
+    {% elif row.status.value == 'FLAGGED' %}
+    <div class="meap-inline-actions">
+      <form hx-post="/je-review/entries/{{ row.entry_id }}/approve"
+            hx-target="#entry-{{ row.entry_id }}" hx-swap="outerHTML">
+        <button type="submit" class="meap-btn meap-btn--small">Approve</button>
+      </form>
+      <form hx-post="/je-review/entries/{{ row.entry_id }}/reject"
+            hx-target="#entry-{{ row.entry_id }}" hx-swap="outerHTML">
+        <button type="submit" class="meap-btn meap-btn--small meap-btn--danger">Reject</button>
+      </form>
+    </div>
+    {% else %}
+    <span class="meap-muted">{{ row.reviewer_notes or '' }}</span>
+    {% endif %}
+  </td>
+</tr>

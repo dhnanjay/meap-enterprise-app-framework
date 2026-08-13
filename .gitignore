@@ -1,0 +1,32 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Local application state
+*.db
+*.sqlite
+*.sqlite3
+artifacts/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp

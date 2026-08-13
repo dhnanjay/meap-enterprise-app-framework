@@ -1,0 +1,49 @@
+{# journal_entry_review/new.html — Create new JE review form
+   Uses semantic HTML form per Sections 19, 21. Degrades gracefully without HTMX.
+#}
+<div class="meap-page meap-object-page" id="je-new">
+  <div class="meap-breadcrumb">
+    <a href="/je-review"
+       {% if is_htmx %}hx-get="/je-review" hx-target="#main-content" hx-push-url="true"{% endif %}>JE Review</a>
+    <span class="meap-breadcrumb-sep">/</span>
+    <span>New Review</span>
+  </div>
+
+  <div class="meap-page-header">
+    <div>
+      <h1 class="meap-page-title">New Journal Entry Review</h1>
+      <p class="meap-page-subtitle">Create a review engagement for journal entry testing</p>
+    </div>
+  </div>
+
+  <div class="meap-card meap-form-card">
+    <div class="meap-card-body">
+      <form method="post" action="/je-review"
+            {% if is_htmx %}hx-post="/je-review" hx-target="#main-content" hx-push-url="true"{% endif %}>
+
+        <div class="meap-form-field">
+          <label for="engagement">Engagement Name <span class="meap-required">*</span></label>
+          <input type="text" id="engagement" name="engagement" required
+                 placeholder="e.g., FY2026 Q3 Audit — Corporate JE Review"
+                 class="meap-input">
+        </div>
+
+        <div class="meap-form-field">
+          <label for="period">Period <span class="meap-required">*</span></label>
+          <input type="text" id="period" name="period" required
+                 placeholder="e.g., 2026-Q3"
+                 class="meap-input">
+        </div>
+
+        <div class="meap-form-actions">
+          <button type="submit" class="meap-btn meap-btn--primary">Create Review</button>
+          <a href="/je-review"
+             class="meap-btn"
+             {% if is_htmx %}hx-get="/je-review" hx-target="#main-content" hx-push-url="true"{% endif %}>
+            Cancel
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,39 @@
+{# bank_reconciliation/fragments/job_status.html — Job progress fragment
+   HTMX polls this to show progress (Section 34).
+   Uses semantic HTML per Section 21.
+#}
+<div id="job-status-{{ job.job_id }}" class="meap-job-status">
+  {% if job.status.value == 'QUEUED' %}
+  <span class="meap-badge meap-badge--progress">Queued</span>
+  <span>Waiting for a worker</span>
+
+  {% elif job.status.value == 'RUNNING' %}
+  <span class="meap-badge meap-badge--progress">Running</span>
+  <span class="meap-num">{{ "%.0f"|format(job.progress) }}% complete</span>
+  <div class="meap-progress-bar">
+    <div class="meap-progress-fill" style="width: {{ job.progress }}%"></div>
+  </div>
+
+  {% elif job.status.value == 'SUCCEEDED' %}
+  <span class="meap-badge meap-badge--success">✓ Completed</span>
+  <span class="meap-muted">Finished in {{ job.duration_seconds if job.duration_seconds else '—' }}s</span>
+
+  {% elif job.status.value == 'FAILED' %}
+  <span class="meap-badge meap-badge--critical">Failed</span>
+  <span class="meap-error-text">{{ job.error_message or 'Processing failed' }}</span>
+  {% if job.error_code %}
+  <code class="meap-error-code">{{ job.error_code }}</code>
+  {% endif %}
+
+  {% elif job.status.value == 'CANCELLED' %}
+  <span class="meap-badge">Cancelled</span>
+  {% endif %}
+
+  {# Auto-poll while running (Section 34) #}
+  {% if job.status.value in ('QUEUED', 'RUNNING') %}
+  <div hx-get="/developer/jobs/{{ job.job_id }}/status"
+       hx-trigger="load delay:2s"
+       hx-target="#job-status-{{ job.job_id }}"
+       hx-swap="outerHTML"></div>
+  {% endif %}
+</div>

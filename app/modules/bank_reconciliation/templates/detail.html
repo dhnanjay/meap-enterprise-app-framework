@@ -1,0 +1,109 @@
+{# bank_reconciliation/detail.html — Reconciliation workspace overview
+   Uses semantic HTML per Section 21. Tabs are URLs (Section: Tabs should be URLs).
+#}
+<div class="meap-page meap-object-page" id="br-detail">
+  <div class="meap-breadcrumb">
+    <a href="/bank-recon"
+       {% if is_htmx %}hx-get="/bank-recon" hx-target="#main-content" hx-push-url="true"{% endif %}>Bank Reconciliation</a>
+    <span class="meap-breadcrumb-sep">/</span>
+    <span>{{ vm.reference }}</span>
+  </div>
+
+  <div class="meap-page-header">
+    <div>
+      <div class="meap-eyebrow">Bank reconciliation</div>
+      <h1 class="meap-object-id">{{ vm.reference }}</h1>
+      <p class="meap-page-subtitle">{{ vm.account_name }} · {{ vm.period }}</p>
+    </div>
+    <div class="meap-page-actions">
+      {% if vm.status.value == 'MATCHED' or vm.status.value == 'APPROVED' %}
+        <span class="meap-badge meap-badge--success">{{ vm.status.value }}</span>
+      {% elif vm.status.value == 'EXCEPTION' %}
+        <span class="meap-badge meap-badge--attention">{{ vm.status.value }}</span>
+      {% else %}
+        <span class="meap-badge meap-badge--progress">{{ vm.status.value }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Tab navigation — each tab is a URL (Section: Tabs should be URLs) ──── #}
+  <nav class="meap-tabs">
+    <a href="/bank-recon/{{ vm.reconciliation_id }}"
+       class="meap-tab meap-tab--active" aria-selected="true"
+       {% if is_htmx %}hx-get="/bank-recon/{{ vm.reconciliation_id }}" hx-target="#main-content" hx-push-url="true"{% endif %}>
+      Overview
+    </a>
+    <a href="/bank-recon/{{ vm.reconciliation_id }}/exceptions"
+       class="meap-tab"
+       {% if is_htmx %}hx-get="/bank-recon/{{ vm.reconciliation_id }}/exceptions" hx-target="#main-content" hx-push-url="true"{% endif %}>
+      Exceptions <span class="meap-tab-count">{{ vm.exception_count }}</span>
+    </a>
+  </nav>
+
+  {# ── Summary stats ─────────────────────────────────────────────────────── #}
+  <div class="meap-facts" aria-label="Reconciliation summary">
+    <div class="meap-fact">
+      <span class="meap-fact-label">Statement balance</span>
+      <span class="meap-fact-value meap-num">{{ "${:,.2f}".format(vm.statement_balance) }}</span>
+    </div>
+    <div class="meap-fact">
+      <span class="meap-fact-label">Book balance</span>
+      <span class="meap-fact-value meap-num">{{ "${:,.2f}".format(vm.book_balance) }}</span>
+    </div>
+    <div class="meap-fact">
+      <span class="meap-fact-label">Unexplained difference</span>
+      <span class="meap-fact-value meap-num{% if vm.difference != 0 %} meap-fact-value--attention{% endif %}">
+        {{ "${:,.2f}".format(vm.difference) }}
+      </span>
+    </div>
+    <div class="meap-fact">
+      <span class="meap-fact-label">Open exceptions</span>
+      <span class="meap-fact-value meap-num">{{ vm.exception_count }}</span>
+    </div>
+  </div>
+
+  {# ── Exception status breakdown ────────────────────────────────────────── #}
+  {% if vm.exception_summary %}
+  <div class="meap-card meap-card--section">
+    <div class="meap-card-header">
+      <h2 class="meap-card-title">Exception Summary</h2>
+    </div>
+    <div class="meap-card-body">
+      <div class="meap-list">
+        {% for status, count in vm.exception_summary.items() %}
+        <div class="meap-list-item">
+          {% if status == 'RESOLVED' %}
+            <span class="meap-badge meap-badge--success">{{ status }}</span>
+          {% elif status in ('ESCALATED', 'UNMATCHED') %}
+            <span class="meap-badge meap-badge--attention">{{ status }}</span>
+          {% else %}
+            <span class="meap-badge meap-badge--progress">{{ status }}</span>
+          {% endif %}
+          <strong>{{ count }}</strong>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Metadata ──────────────────────────────────────────────────────────── #}
+  <div class="meap-info-panel">
+    <div class="meap-info-row">
+      <span>Account Number</span>
+      <strong class="meap-mono">{{ vm.account_number or '—' }}</strong>
+    </div>
+    <div class="meap-info-row">
+      <span>Created</span>
+      <strong>{{ vm.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</strong>
+    </div>
+    <div class="meap-info-row">
+      <span>Source Artifact</span>
+      <code>{{ vm.source_artifact_id or '—' }}</code>
+    </div>
+    <div class="meap-info-row">
+      <span>Processing Job</span>
+      <code>{{ vm.job_id or '—' }}</code>
+    </div>
+  </div>
+</div>

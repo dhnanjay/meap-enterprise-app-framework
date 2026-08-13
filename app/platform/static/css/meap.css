@@ -1,0 +1,325 @@
+/* MEAP Design Layer — Quiet Enterprise
+   Native HTML owns semantics. Blue means interactive. Status color means state.
+   Content uses hairline borders; elevation is reserved for overlays. */
+
+:root {
+  --meap-canvas: #f6f7f9;
+  --meap-surface: #fff;
+  --meap-surface-sunken: #f1f3f5;
+  --meap-surface-hover: #f5f7fa;
+  --meap-rail: #fbfcfd;
+  --meap-border: #e3e6ea;
+  --meap-border-strong: #cbd2d9;
+  --meap-border-subtle: #eef0f3;
+  --meap-text: #101519;
+  --meap-text-secondary: #5a646e;
+  --meap-text-muted: #8a939c;
+  --meap-text-inverse: #fff;
+  --meap-accent: #1b5fcc;
+  --meap-accent-hover: #17509f;
+  --meap-accent-active: #123e7c;
+  --meap-accent-subtle: #eef3fc;
+  --meap-accent-border: #c3d6f5;
+  --meap-focus-ring: rgba(27, 95, 204, 0.28);
+  --meap-neutral-fg: #4e5862;
+  --meap-neutral-bg: #eff1f3;
+  --meap-neutral-border: #dce0e5;
+  --meap-progress-fg: #1b5fcc;
+  --meap-progress-bg: #eef3fc;
+  --meap-progress-border: #c3d6f5;
+  --meap-success-fg: #14663d;
+  --meap-success-bg: #e9f4ee;
+  --meap-success-border: #bedecc;
+  --meap-attention-fg: #8a5206;
+  --meap-attention-bg: #fcf3e4;
+  --meap-attention-border: #edd5aa;
+  --meap-critical-fg: #a62b23;
+  --meap-critical-bg: #fbedec;
+  --meap-critical-border: #efc9c6;
+  --meap-font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --meap-font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --meap-size-2xs: .6875rem;
+  --meap-size-xs: .75rem;
+  --meap-size-sm: .8125rem;
+  --meap-size-base: .875rem;
+  --meap-size-md: 1rem;
+  --meap-size-lg: 1.25rem;
+  --meap-size-xl: 1.75rem;
+  --meap-weight-regular: 400;
+  --meap-weight-medium: 500;
+  --meap-weight-semibold: 600;
+  --meap-space-1: .25rem;
+  --meap-space-2: .5rem;
+  --meap-space-3: .75rem;
+  --meap-space-4: 1rem;
+  --meap-space-5: 1.5rem;
+  --meap-space-6: 2rem;
+  --meap-space-7: 3rem;
+  --meap-radius-sm: 3px;
+  --meap-radius-md: 4px;
+  --meap-radius-lg: 6px;
+  --meap-shadow-overlay: 0 8px 24px rgba(16, 21, 25, .12), 0 1px 2px rgba(16, 21, 25, .08);
+  --meap-topbar-height: 52px;
+  --meap-sidenav-width: 248px;
+  --meap-content-max: 1440px;
+  --meap-content-pad: var(--meap-space-6);
+  --meap-row-height: 36px;
+  --meap-row-pad-y: var(--meap-space-2);
+  --meap-control-height: 32px;
+}
+
+[data-density="comfortable"] {
+  --meap-row-height: 44px;
+  --meap-row-pad-y: var(--meap-space-3);
+  --meap-control-height: 36px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+body { background: var(--meap-canvas); color: var(--meap-text); font: var(--meap-size-base)/1.5 var(--meap-font-ui); -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; }
+table, .meap-num, input[type="number"], time { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+a { color: var(--meap-accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, .meap-mono, .meap-object-id, .meap-correlation, .meap-config-value, .meap-permission { font-family: var(--meap-font-mono); }
+code { padding: 2px 5px; border-radius: var(--meap-radius-sm); background: var(--meap-surface-sunken); font-size: .9em; }
+:focus-visible { outline: 2px solid var(--meap-accent); outline-offset: 1px; }
+
+.meap-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.meap-skip-link { position: fixed; top: 4px; left: 8px; z-index: 1000; transform: translateY(-150%); padding: 6px 10px; color: #fff; background: var(--meap-accent); border-radius: var(--meap-radius-md); }
+.meap-skip-link:focus { transform: translateY(0); }
+
+/* Shell */
+.meap-shell { min-height: 100vh; }
+.meap-topbar { position: sticky; top: 0; z-index: 100; display: grid; grid-template-columns: minmax(220px, 1fr) minmax(280px, 440px) minmax(220px, 1fr); align-items: center; height: var(--meap-topbar-height); padding: 0 var(--meap-space-4); background: var(--meap-surface); border-bottom: 1px solid var(--meap-border); }
+.meap-topbar-left, .meap-topbar-right { display: flex; align-items: center; gap: var(--meap-space-2); }
+.meap-topbar-right { justify-content: flex-end; }
+.meap-brand { display: flex; align-items: center; gap: var(--meap-space-2); color: var(--meap-text); }
+.meap-brand:hover { color: var(--meap-text); text-decoration: none; }
+.meap-brand-mark, .meap-search-result-mark { display: grid; place-items: center; flex: none; width: 24px; height: 24px; color: #fff; background: var(--meap-accent); border-radius: var(--meap-radius-md); font-size: var(--meap-size-xs); font-weight: var(--meap-weight-semibold); }
+.meap-brand-lockup { display: flex; flex-direction: column; line-height: 1.1; }
+.meap-brand-text { font-weight: var(--meap-weight-semibold); }
+.meap-brand-caption { color: var(--meap-text-muted); font-size: var(--meap-size-2xs); }
+.meap-icon-btn { display: inline-grid; place-items: center; width: 32px; height: 32px; border: 1px solid transparent; border-radius: var(--meap-radius-md); background: transparent; color: var(--meap-text-secondary); cursor: pointer; }
+.meap-icon-btn:hover { border-color: var(--meap-border); background: var(--meap-surface-hover); color: var(--meap-text); }
+.meap-search-form { position: relative; display: flex; align-items: center; }
+.meap-search-icon { position: absolute; left: 9px; color: var(--meap-text-muted); pointer-events: none; }
+.meap-search-input { width: 100%; height: var(--meap-control-height); padding: 0 var(--meap-space-3) 0 32px; border: 1px solid var(--meap-border-strong); border-radius: var(--meap-radius-md); background: var(--meap-surface); color: var(--meap-text); font-size: var(--meap-size-base); }
+.meap-search-input::placeholder { color: var(--meap-text-muted); }
+.meap-search-input:focus { outline: none; border-color: var(--meap-accent); box-shadow: 0 0 0 3px var(--meap-focus-ring); }
+.meap-environment { display: inline-flex; align-items: center; gap: 6px; color: var(--meap-text-secondary); font-size: var(--meap-size-2xs); font-weight: var(--meap-weight-semibold); text-transform: uppercase; letter-spacing: .08em; }
+.meap-environment-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--meap-success-fg); }
+.meap-shell-body { display: grid; grid-template-columns: var(--meap-sidenav-width) minmax(0, 1fr); min-height: calc(100vh - var(--meap-topbar-height)); }
+.meap-rail-collapsed .meap-shell-body { grid-template-columns: minmax(0, 1fr); }
+.meap-sidenav { grid-column: 1; grid-row: 1; position: sticky; top: var(--meap-topbar-height); height: calc(100vh - var(--meap-topbar-height)); overflow-y: auto; padding: var(--meap-space-4) var(--meap-space-3); background: var(--meap-rail); border-right: 1px solid var(--meap-border); }
+.meap-sidenav.collapsed { display: none; }
+.meap-nav-overline, .meap-nav-group-title { padding: 0 var(--meap-space-2) var(--meap-space-2); color: var(--meap-text-muted); font-size: var(--meap-size-2xs); font-weight: var(--meap-weight-semibold); text-transform: uppercase; letter-spacing: .08em; }
+.meap-nav-group { margin-top: var(--meap-space-5); }
+.meap-nav-item { display: flex; align-items: center; gap: var(--meap-space-2); min-height: var(--meap-row-height); padding: 0 var(--meap-space-2); border-radius: var(--meap-radius-md); color: var(--meap-text-secondary); font-weight: var(--meap-weight-medium); }
+.meap-nav-item:hover { color: var(--meap-text); background: var(--meap-surface-hover); text-decoration: none; }
+.meap-nav-item--active, .meap-nav-item[aria-current="page"] { color: var(--meap-accent); background: var(--meap-accent-subtle); box-shadow: inset 2px 0 0 var(--meap-accent); }
+.meap-nav-icon { width: 20px; text-align: center; font-size: var(--meap-size-base); }
+.meap-nav-scrim { display: none; }
+.meap-main-content { grid-column: 2; grid-row: 1; width: 100%; min-width: 0; padding: var(--meap-content-pad); overflow-x: auto; }
+.meap-rail-collapsed .meap-main-content { grid-column: 1; }
+.meap-main-content.htmx-request { opacity: .6; pointer-events: none; transition: opacity 120ms linear; }
+
+/* Page archetypes: overview, list report, object page, sub-object page */
+.meap-page { width: 100%; max-width: var(--meap-content-max); margin: 0 auto; }
+.meap-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--meap-space-4); margin-bottom: var(--meap-space-5); }
+.meap-page-title { font-size: var(--meap-size-lg); font-weight: var(--meap-weight-semibold); line-height: 1.25; letter-spacing: -.01em; }
+.meap-object-id { font-size: var(--meap-size-xl); font-weight: var(--meap-weight-medium); line-height: 1.25; letter-spacing: -.02em; }
+.meap-page-subtitle { margin-top: var(--meap-space-1); color: var(--meap-text-secondary); }
+.meap-page-actions { display: flex; align-items: center; gap: var(--meap-space-2); flex: none; }
+.meap-eyebrow { margin-bottom: var(--meap-space-2); color: var(--meap-text-muted); font-size: var(--meap-size-2xs); font-weight: var(--meap-weight-semibold); text-transform: uppercase; letter-spacing: .08em; }
+.meap-breadcrumb { display: flex; align-items: center; gap: var(--meap-space-2); margin-bottom: var(--meap-space-3); color: var(--meap-text-muted); font-size: var(--meap-size-xs); }
+.meap-breadcrumb a { color: var(--meap-text-secondary); }
+.meap-breadcrumb-sep { color: var(--meap-border-strong); }
+
+.meap-facts { display: flex; flex-wrap: wrap; gap: var(--meap-space-6); padding: var(--meap-space-4) 0; margin-bottom: var(--meap-space-5); border-top: 1px solid var(--meap-border); border-bottom: 1px solid var(--meap-border); }
+.meap-fact { min-width: 140px; }
+.meap-fact-label, .meap-stat-label { display: block; margin-bottom: var(--meap-space-1); color: var(--meap-text-muted); font-size: var(--meap-size-2xs); font-weight: var(--meap-weight-semibold); text-transform: uppercase; letter-spacing: .08em; }
+.meap-fact-value, .meap-stat-value { display: block; font-size: var(--meap-size-lg); font-weight: var(--meap-weight-semibold); line-height: 1.25; letter-spacing: -.01em; }
+.meap-fact-value--attention, .meap-num--attention { color: var(--meap-attention-fg); }
+
+/* Cards and structured detail */
+.meap-card, .meap-info-panel { background: var(--meap-surface); border: 1px solid var(--meap-border); border-radius: var(--meap-radius-lg); }
+.meap-card--section { margin-bottom: var(--meap-space-5); }
+.meap-card-header { display: flex; align-items: center; justify-content: space-between; gap: var(--meap-space-3); padding: var(--meap-space-3) var(--meap-space-4); border-bottom: 1px solid var(--meap-border); }
+.meap-card-title, .meap-card-header h3 { font-size: var(--meap-size-md); font-weight: var(--meap-weight-semibold); }
+.meap-card-body { padding: var(--meap-space-4); }
+.meap-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--meap-space-4); margin-bottom: var(--meap-space-5); }
+.meap-module-card .meap-card-body { padding: 0; }
+.meap-list { list-style: none; }
+.meap-list-item { display: flex; align-items: center; justify-content: space-between; min-height: var(--meap-row-height); padding: var(--meap-space-2) var(--meap-space-4); border-bottom: 1px solid var(--meap-border-subtle); }
+.meap-list-item:last-child { border-bottom: 0; }
+.meap-module-card .meap-list-item { padding: 0; }
+.meap-module-link { display: flex; align-items: center; gap: var(--meap-space-3); flex: 1; padding: var(--meap-space-3) var(--meap-space-4); color: var(--meap-text); }
+.meap-module-link:hover { background: var(--meap-surface-hover); color: var(--meap-text); text-decoration: none; }
+.meap-module-link strong, .meap-module-link small { display: block; }
+.meap-module-link small { margin-top: 2px; color: var(--meap-text-muted); font-size: var(--meap-size-xs); }
+.meap-module-icon { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--meap-border); border-radius: var(--meap-radius-md); color: var(--meap-text-secondary); background: var(--meap-surface-sunken); }
+.meap-list-arrow { margin-right: var(--meap-space-4); color: var(--meap-text-muted); }
+.meap-info-panel { margin-top: var(--meap-space-5); padding: var(--meap-space-3) var(--meap-space-4); }
+.meap-info-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--meap-space-4); min-height: var(--meap-row-height); padding: var(--meap-space-2) 0; border-bottom: 1px solid var(--meap-border-subtle); }
+.meap-info-row:last-child { border-bottom: 0; }
+.meap-info-row > :first-child { color: var(--meap-text-secondary); font-size: var(--meap-size-sm); }
+.meap-info-row > :last-child { text-align: right; font-size: var(--meap-size-sm); font-weight: var(--meap-weight-medium); }
+.meap-section-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--meap-space-2); }
+.meap-health { display: inline-flex; align-items: center; gap: 6px; color: var(--meap-success-fg); font-size: var(--meap-size-xs); font-weight: var(--meap-weight-medium); }
+.meap-health > span { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.meap-risk-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.meap-risk-item { display: flex; align-items: baseline; justify-content: space-between; padding: var(--meap-space-2) var(--meap-space-3); border-right: 1px solid var(--meap-border-subtle); }
+.meap-label { color: var(--meap-text-secondary); font-size: var(--meap-size-sm); font-weight: var(--meap-weight-medium); }
+
+/* Tabs */
+.meap-tabs { display: flex; gap: var(--meap-space-4); margin-bottom: var(--meap-space-5); border-bottom: 1px solid var(--meap-border); }
+.meap-tab { padding: var(--meap-space-2) 0 var(--meap-space-3); margin-bottom: -1px; border-bottom: 2px solid transparent; color: var(--meap-text-secondary); font-weight: var(--meap-weight-medium); }
+.meap-tab:hover { color: var(--meap-text); text-decoration: none; }
+.meap-tab--active, .meap-tab[aria-selected="true"] { color: var(--meap-accent); border-bottom-color: var(--meap-accent); }
+.meap-tab-count { color: var(--meap-text-muted); font-weight: var(--meap-weight-regular); }
+
+/* Forms and filters */
+.meap-form { max-width: 600px; }
+.meap-form-card { max-width: 640px; }
+.meap-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--meap-space-4); }
+.meap-form-field { margin-bottom: var(--meap-space-4); }
+.meap-form-field label, .meap-filter-item label { display: block; margin-bottom: var(--meap-space-1); color: var(--meap-text-muted); font-size: var(--meap-size-2xs); font-weight: var(--meap-weight-semibold); text-transform: uppercase; letter-spacing: .08em; }
+.meap-required { color: var(--meap-critical-fg); }
+.meap-form-actions { display: flex; gap: var(--meap-space-2); margin-top: var(--meap-space-4); }
+.meap-filter-bar { display: flex; align-items: flex-end; flex-wrap: wrap; gap: var(--meap-space-3); padding: var(--meap-space-3) var(--meap-space-4); margin-bottom: 0; border: 1px solid var(--meap-border); border-bottom: 0; border-radius: var(--meap-radius-lg) var(--meap-radius-lg) 0 0; background: var(--meap-surface); }
+.meap-filter-item { min-width: 140px; }
+.meap-filter-item--grow { flex: 1; min-width: 220px; }
+.meap-active-filters { display: flex; align-items: center; flex-wrap: wrap; gap: var(--meap-space-2); padding: var(--meap-space-2) var(--meap-space-4); border: 1px solid var(--meap-border); border-bottom: 0; background: var(--meap-surface); }
+.meap-active-filters-label { color: var(--meap-text-muted); font-size: var(--meap-size-xs); }
+.meap-filter-pill { display: inline-flex; align-items: center; gap: var(--meap-space-1); padding: 2px var(--meap-space-2); border: 1px solid var(--meap-accent-border); border-radius: var(--meap-radius-sm); background: var(--meap-accent-subtle); color: var(--meap-accent); font-size: var(--meap-size-xs); font-weight: var(--meap-weight-medium); }
+.meap-filter-pill:hover { background: var(--meap-surface); text-decoration: none; }
+.meap-input, .meap-select, .meap-textarea { width: 100%; min-height: var(--meap-control-height); padding: 0 var(--meap-space-2); border: 1px solid var(--meap-border-strong); border-radius: var(--meap-radius-md); background: var(--meap-surface); color: var(--meap-text); font-size: var(--meap-size-base); }
+.meap-textarea { min-height: 80px; padding-top: var(--meap-space-2); resize: vertical; }
+.meap-input::placeholder { color: var(--meap-text-muted); }
+.meap-input:focus, .meap-select:focus, .meap-textarea:focus { outline: none; border-color: var(--meap-accent); box-shadow: 0 0 0 3px var(--meap-focus-ring); }
+
+/* Buttons */
+.meap-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--meap-space-2); min-height: var(--meap-control-height); padding: 0 var(--meap-space-3); border: 1px solid var(--meap-border-strong); border-radius: var(--meap-radius-md); background: var(--meap-surface); color: var(--meap-text); font-size: var(--meap-size-base); font-weight: var(--meap-weight-medium); white-space: nowrap; cursor: pointer; }
+.meap-btn:hover { color: var(--meap-text); background: var(--meap-surface-hover); text-decoration: none; }
+.meap-btn--primary { color: #fff; border-color: var(--meap-accent); background: var(--meap-accent); }
+.meap-btn--primary:hover { color: #fff; border-color: var(--meap-accent-hover); background: var(--meap-accent-hover); }
+.meap-btn--quiet { color: var(--meap-text-secondary); border-color: transparent; background: transparent; }
+.meap-btn--quiet:hover { color: var(--meap-text); border-color: transparent; background: var(--meap-surface-hover); }
+.meap-btn--danger { color: var(--meap-critical-fg); border-color: var(--meap-critical-border); background: var(--meap-surface); }
+.meap-btn--danger:hover { color: var(--meap-critical-fg); background: var(--meap-critical-bg); }
+.meap-btn--small, .meap-btn--sm { min-height: 28px; padding: 0 var(--meap-space-2); font-size: var(--meap-size-sm); }
+.meap-inline-actions { display: flex; gap: var(--meap-space-1); }
+
+/* Status and chips */
+.meap-badge { display: inline-flex; align-items: center; gap: var(--meap-space-1); padding: 2px var(--meap-space-2); border: 1px solid var(--meap-neutral-border); border-radius: var(--meap-radius-sm); background: var(--meap-neutral-bg); color: var(--meap-neutral-fg); font-size: var(--meap-size-xs); font-weight: var(--meap-weight-medium); line-height: 1.4; white-space: nowrap; }
+.meap-badge::before { content: ""; width: 5px; height: 5px; flex: none; border-radius: 50%; background: currentColor; }
+.meap-badge--progress { color: var(--meap-progress-fg); background: var(--meap-progress-bg); border-color: var(--meap-progress-border); }
+.meap-badge--success { color: var(--meap-success-fg); background: var(--meap-success-bg); border-color: var(--meap-success-border); }
+.meap-badge--attention { color: var(--meap-attention-fg); background: var(--meap-attention-bg); border-color: var(--meap-attention-border); }
+.meap-badge--critical { color: var(--meap-critical-fg); background: var(--meap-critical-bg); border-color: var(--meap-critical-border); }
+.meap-chip, .meap-heading-count { display: inline-flex; align-items: center; padding: 2px var(--meap-space-2); border: 1px solid var(--meap-border); border-radius: var(--meap-radius-sm); background: var(--meap-surface-sunken); color: var(--meap-text-secondary); font-size: var(--meap-size-xs); font-weight: var(--meap-weight-medium); }
+
+/* Dense data tables */
+.meap-table-wrapper { overflow: auto; border: 1px solid var(--meap-border); border-radius: var(--meap-radius-lg); background: var(--meap-surface); }
+.meap-filter-bar + .meap-table-wrapper { border-radius: 0 0 var(--meap-radius-lg) var(--meap-radius-lg); }
+.meap-active-filters + .meap-table-wrapper { border-radius: 0 0 var(--meap-radius-lg) var(--meap-radius-lg); }
+.meap-table { width: 100%; border-collapse: collapse; font-size: var(--meap-size-sm); }
+.meap-table thead th { position: sticky; top: 0; z-index: 1; height: 32px; padding: 0 var(--meap-space-3); border-bottom: 1px solid var(--meap-border); background: var(--meap-surface-sunken); color: var(--meap-text-secondary); font-size: var(--meap-size-2xs); font-weight: var(--meap-weight-semibold); text-align: left; text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
+.meap-table tbody td { height: var(--meap-row-height); padding: var(--meap-row-pad-y) var(--meap-space-3); border-bottom: 1px solid var(--meap-border-subtle); vertical-align: middle; }
+.meap-table tbody tr:last-child td { border-bottom: 0; }
+.meap-table tbody tr:hover { background: var(--meap-surface-hover); }
+.meap-table th a { display: inline-flex; align-items: center; gap: var(--meap-space-1); color: inherit; }
+.meap-table th a:hover { color: var(--meap-text); text-decoration: none; }
+.meap-table th a.active { color: var(--meap-accent); }
+.meap-col--num { text-align: right !important; }
+.meap-col--fit { width: 1%; white-space: nowrap; }
+.sort-icon { color: var(--meap-accent); }
+.meap-pagination { display: flex; align-items: center; justify-content: space-between; gap: var(--meap-space-3); padding: var(--meap-space-2) var(--meap-space-4); border-top: 1px solid var(--meap-border); color: var(--meap-text-secondary); font-size: var(--meap-size-sm); }
+.meap-pagination-controls { display: flex; gap: var(--meap-space-2); }
+.meap-pagination .disabled { color: var(--meap-text-muted); }
+
+/* Empty, search and diagnostics */
+.meap-empty-state { padding: var(--meap-space-7) var(--meap-space-5); text-align: center; color: var(--meap-text-secondary); }
+.meap-empty-state-icon { margin-bottom: var(--meap-space-2); color: var(--meap-text-muted); font-size: var(--meap-size-xl); }
+.meap-empty-state-title { margin-bottom: var(--meap-space-2); color: var(--meap-text); font-size: var(--meap-size-md); font-weight: var(--meap-weight-semibold); }
+.meap-search-results { overflow: hidden; list-style: none; border: 1px solid var(--meap-border); border-radius: var(--meap-radius-lg); background: var(--meap-surface); }
+.meap-search-results li + li { border-top: 1px solid var(--meap-border-subtle); }
+.meap-search-result { display: flex; align-items: center; gap: var(--meap-space-3); padding: var(--meap-space-3) var(--meap-space-4); color: var(--meap-text); }
+.meap-search-result:hover { color: var(--meap-text); background: var(--meap-surface-hover); text-decoration: none; }
+.meap-search-result-copy { display: flex; flex: 1; flex-direction: column; }
+.meap-search-result-copy small { color: var(--meap-text-secondary); }
+.meap-section { margin-bottom: var(--meap-space-5); }
+.meap-section > h2 { display: flex; align-items: center; gap: var(--meap-space-2); margin-bottom: var(--meap-space-3); font-size: var(--meap-size-md); }
+.meap-config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); overflow: hidden; border: 1px solid var(--meap-border); border-radius: var(--meap-radius-lg); }
+.meap-config-row { display: flex; justify-content: space-between; gap: var(--meap-space-3); min-height: var(--meap-row-height); padding: var(--meap-space-2) var(--meap-space-3); border-bottom: 1px solid var(--meap-border-subtle); background: var(--meap-surface); }
+.meap-config-key { color: var(--meap-text-secondary); }
+.meap-config-value { overflow-wrap: anywhere; font-size: var(--meap-size-xs); }
+.meap-permissions { display: flex; flex-wrap: wrap; gap: var(--meap-space-2); }
+.meap-permission { padding: 4px 6px; border: 1px solid var(--meap-border); border-radius: var(--meap-radius-sm); background: var(--meap-surface); font-size: var(--meap-size-xs); }
+
+/* Jobs and errors */
+.meap-job-status { display: flex; align-items: center; flex-wrap: wrap; gap: var(--meap-space-2); padding: var(--meap-space-3) var(--meap-space-4); border: 1px solid var(--meap-border); border-left-width: 3px; border-radius: var(--meap-radius-md); background: var(--meap-surface); }
+.meap-progress-bar { width: 100%; height: 4px; overflow: hidden; border-radius: 2px; background: var(--meap-surface-sunken); }
+.meap-progress-fill { height: 100%; border-radius: inherit; background: var(--meap-progress-fg); transition: width 300ms linear; }
+.meap-muted { color: var(--meap-text-muted); font-size: var(--meap-size-xs); }
+.meap-error-text, .meap-error-message { color: var(--meap-critical-fg); }
+.meap-error-fragment, .meap-error-container { padding: var(--meap-space-4); border: 1px solid var(--meap-critical-border); border-left-width: 3px; border-radius: var(--meap-radius-md); background: var(--meap-critical-bg); }
+#meap-error-region { position: fixed; right: var(--meap-space-4); bottom: var(--meap-space-4); z-index: 200; max-width: 480px; box-shadow: var(--meap-shadow-overlay); }
+.meap-error-page { display: grid; min-height: 100vh; place-items: center; padding: var(--meap-space-5); }
+.meap-error-container { max-width: 640px; }
+.meap-error-meta { display: flex; flex-wrap: wrap; gap: var(--meap-space-2); margin: var(--meap-space-3) 0; }
+
+@media (max-width: 960px) {
+  :root { --meap-content-pad: var(--meap-space-4); }
+  .meap-topbar { grid-template-columns: 1fr minmax(220px, 360px) 1fr; }
+  .meap-shell-body { grid-template-columns: 1fr; }
+  .meap-rail-collapsed .meap-shell-body { grid-template-columns: 1fr; }
+  .meap-main-content,
+  .meap-rail-collapsed .meap-main-content { grid-column: 1; }
+  .meap-sidenav { position: fixed; left: 0; z-index: 110; width: var(--meap-sidenav-width); transform: translateX(-105%); box-shadow: var(--meap-shadow-overlay); transition: transform 120ms linear; }
+  .meap-sidenav.open { display: block; transform: translateX(0); }
+  .meap-nav-scrim { position: fixed; inset: var(--meap-topbar-height) 0 0; z-index: 105; border: 0; background: rgba(16, 21, 25, .32); }
+  .meap-nav-open .meap-nav-scrim { display: block; }
+  .meap-page-header { flex-direction: column; }
+}
+
+@media (max-width: 680px) {
+  .meap-topbar { grid-template-columns: 1fr auto; }
+  .meap-topbar-center { display: none; }
+  .meap-brand-caption, .meap-environment { display: none; }
+  .meap-page-actions { width: 100%; }
+  .meap-filter-bar { align-items: stretch; }
+  .meap-filter-item, .meap-filter-item--grow { width: 100%; min-width: 0; }
+  .meap-form-row { grid-template-columns: 1fr; gap: 0; }
+  .meap-facts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--meap-space-4); }
+  .meap-table { min-width: 720px; }
+  .meap-pagination { align-items: flex-start; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* Workpaper output: remove application chrome, preserve evidence tables. */
+@media print {
+  .meap-topbar,
+  .meap-sidenav,
+  .meap-nav-scrim,
+  .meap-filter-bar,
+  .meap-pagination,
+  .meap-page-actions,
+  #meap-error-region { display: none !important; }
+  body { background: #fff; color: #000; font-size: 10pt; }
+  .meap-shell-body { display: block; }
+  .meap-main-content { padding: 0; overflow: visible; }
+  .meap-page { max-width: none; }
+  .meap-card,
+  .meap-info-panel,
+  .meap-table-wrapper { border-color: #999; break-inside: avoid; }
+  .meap-table-wrapper { overflow: visible; }
+  .meap-table { min-width: 0; }
+  .meap-table thead { display: table-header-group; }
+  .meap-table tr { break-inside: avoid; }
+  a { color: #000; text-decoration: none; }
+}

@@ -1,0 +1,91 @@
+{# journal_entry_review/detail.html — Review workspace overview
+   Uses semantic HTML per Section 21. Tabs are URLs.
+#}
+<div class="meap-page meap-object-page" id="je-detail">
+  <div class="meap-breadcrumb">
+    <a href="/je-review"
+       {% if is_htmx %}hx-get="/je-review" hx-target="#main-content" hx-push-url="true"{% endif %}>JE Review</a>
+    <span class="meap-breadcrumb-sep">/</span>
+    <span>{{ vm.engagement }}</span>
+  </div>
+
+  <div class="meap-page-header">
+    <div>
+      <div class="meap-eyebrow">Journal entry review</div>
+      <h1 class="meap-object-id">{{ vm.engagement }}</h1>
+      <p class="meap-page-subtitle">Period: {{ vm.period }}</p>
+    </div>
+    <div class="meap-page-actions">
+      {% if vm.status.value == 'APPROVED' %}
+        <span class="meap-badge meap-badge--success">{{ vm.status.value }}</span>
+      {% elif vm.status.value in ('IN_REVIEW', 'FLAGGED') %}
+        <span class="meap-badge meap-badge--progress">{{ vm.status.value }}</span>
+      {% elif vm.status.value == 'REJECTED' %}
+        <span class="meap-badge meap-badge--critical">{{ vm.status.value }}</span>
+      {% else %}
+        <span class="meap-badge">{{ vm.status.value }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Tab navigation — each tab is a URL ─────────────────────────────────── #}
+  <nav class="meap-tabs">
+    <a href="/je-review/{{ vm.review_id }}"
+       class="meap-tab meap-tab--active" aria-selected="true"
+       {% if is_htmx %}hx-get="/je-review/{{ vm.review_id }}" hx-target="#main-content" hx-push-url="true"{% endif %}>
+      Overview
+    </a>
+    <a href="/je-review/{{ vm.review_id }}/entries"
+       class="meap-tab"
+       {% if is_htmx %}hx-get="/je-review/{{ vm.review_id }}/entries" hx-target="#main-content" hx-push-url="true"{% endif %}>
+      Entries <span class="meap-tab-count">{{ vm.total_entries }}</span>
+    </a>
+  </nav>
+
+  {# ── Summary stats ─────────────────────────────────────────────────────── #}
+  <div class="meap-facts" aria-label="Review summary">
+    <div class="meap-fact">
+      <span class="meap-fact-label">Total entries</span>
+      <span class="meap-fact-value meap-num">{{ vm.total_entries }}</span>
+    </div>
+    <div class="meap-fact">
+      <span class="meap-fact-label">Needs attention</span>
+      <span class="meap-fact-value meap-num{% if vm.flagged_count > 0 %} meap-fact-value--attention{% endif %}">
+        {{ vm.flagged_count }}
+      </span>
+    </div>
+    <div class="meap-fact">
+      <span class="meap-fact-label">Approved</span>
+      <span class="meap-fact-value meap-num">{{ vm.approved_count }}</span>
+    </div>
+  </div>
+
+  {# ── Risk summary ──────────────────────────────────────────────────────── #}
+  {% if vm.risk_summary %}
+  <div class="meap-card">
+    <div class="meap-card-header"><h3>Risk Distribution</h3></div>
+    <div class="meap-card-body">
+      <div class="meap-risk-list">
+        {% for level, count in vm.risk_summary.items() %}
+        <div class="meap-risk-item">
+          <span class="meap-label">{{ level }}</span>
+          <strong class="meap-num">{{ count }}</strong>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Metadata ──────────────────────────────────────────────────────────── #}
+  <div class="meap-info-panel">
+    <div class="meap-info-row">
+      <span>Status</span>
+      <strong>{{ vm.status.value }}</strong>
+    </div>
+    <div class="meap-info-row">
+      <span>Created</span>
+      <strong>{{ vm.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</strong>
+    </div>
+  </div>
+</div>

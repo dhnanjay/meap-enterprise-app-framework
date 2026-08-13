@@ -1,0 +1,29 @@
+{# search_results.html — Global search results fragment #}
+<div class="meap-page meap-list-report" id="search-results">
+  <div class="meap-page-header">
+    <div>
+      <div class="meap-eyebrow">Global search</div>
+      <h1 class="meap-page-title">Search results</h1>
+      <p class="meap-page-subtitle">{{ results | length }} result{% if results | length != 1 %}s{% endif %} for “{{ query }}”</p>
+    </div>
+  </div>
+
+  {% if results %}
+  <ul class="meap-search-results" aria-label="Search results">
+    {% for r in results %}
+    <li>
+      <a class="meap-search-result" href="{{ r.href }}" hx-get="{{ r.href }}"
+         hx-target="#main-content" hx-push-url="true">
+        <span class="meap-search-result-copy"><strong>{{ r.label }}</strong><small>{{ r.description }}</small></span>
+        <span class="meap-list-arrow" aria-hidden="true">→</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="meap-empty-state">
+    <div class="meap-empty-state-title">No matching modules</div>
+    <p>Try a broader search or return to the dashboard.</p>
+  </div>
+  {% endif %}
+</div>

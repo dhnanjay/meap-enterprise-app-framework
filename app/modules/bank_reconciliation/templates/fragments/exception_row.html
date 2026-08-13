@@ -1,0 +1,37 @@
+{# bank_reconciliation/fragments/exception_row.html — Single exception row
+   Returned as fragment after resolve/escalate actions.
+   Uses semantic HTML per Section 21.
+#}
+<tr id="exception-{{ row.exception_id }}">
+  <td>{{ row.transaction_date.strftime('%Y-%m-%d') }}</td>
+  <td>{{ row.description }}</td>
+  <td class="meap-col--num meap-num">{{ "${:,.2f}".format(row.amount) }}</td>
+  <td class="meap-mono">{{ row.account }}</td>
+  <td>
+    {% if row.status.value == 'RESOLVED' %}
+      <span class="meap-badge meap-badge--success">{{ row.status.value }}</span>
+    {% elif row.status.value in ('UNMATCHED', 'ESCALATED') %}
+      <span class="meap-badge meap-badge--attention">{{ row.status.value }}</span>
+    {% else %}
+      <span class="meap-badge meap-badge--progress">{{ row.status.value }}</span>
+    {% endif %}
+  </td>
+  <td>
+    {% if row.status.value in ('UNMATCHED', 'IN_REVIEW') %}
+    <div class="meap-inline-actions">
+      <form hx-post="/bank-recon/exceptions/{{ row.exception_id }}/resolve"
+            hx-target="#exception-{{ row.exception_id }}"
+            hx-swap="outerHTML">
+        <button type="submit" class="meap-btn meap-btn--small">Resolve</button>
+      </form>
+      <form hx-post="/bank-recon/exceptions/{{ row.exception_id }}/escalate"
+            hx-target="#exception-{{ row.exception_id }}"
+            hx-swap="outerHTML">
+        <button type="submit" class="meap-btn meap-btn--small">Escalate</button>
+      </form>
+    </div>
+    {% else %}
+    <span class="meap-muted">{{ row.resolution_notes or '' }}</span>
+    {% endif %}
+  </td>
+</tr>

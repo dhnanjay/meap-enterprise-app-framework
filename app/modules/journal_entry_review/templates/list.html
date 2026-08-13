@@ -1,0 +1,139 @@
+{# journal_entry_review/list.html — URL-driven search/filter/sort/pagination
+   Uses semantic HTML per Section 21.
+#}
+<div class="meap-page meap-list-report" id="je-list">
+  <div class="meap-page-header">
+    <div>
+      <h1 class="meap-page-title">Journal Entry Reviews</h1>
+      <p class="meap-page-subtitle">Risk-based review of journal entries and postings</p>
+    </div>
+    <div class="meap-page-actions">
+      <a href="/je-review/new"
+         class="meap-btn meap-btn--primary"
+         {% if is_htmx %}hx-get="/je-review/new" hx-target="#main-content" hx-push-url="true"{% endif %}>
+        + New Review
+      </a>
+    </div>
+  </div>
+
+  {# ── Search form (URL is the state) ─────────────────────────────────────── #}
+  <form method="get" action="/je-review" class="meap-filter-bar"
+        {% if is_htmx %}hx-get="/je-review" hx-target="#je-list" hx-push-url="true"
+        hx-trigger="submit, input changed delay:400ms from:#je-search"{% endif %}>
+    <div class="meap-filter-item meap-filter-item--grow">
+      <label for="je-search">Search</label>
+      <input type="text" id="je-search" name="q" value="{{ query.q or '' }}"
+             placeholder="Search engagements…" class="meap-input">
+    </div>
+    <div class="meap-filter-item">
+      <label>Status</label>
+      <select name="status" class="meap-select">
+        <option value="">All</option>
+        {% for s in ['UNREVIEWED', 'IN_REVIEW', 'FLAGGED', 'APPROVED', 'REJECTED'] %}
+        <option value="{{ s }}" {{ 'selected' if query.status == s else '' }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="meap-btn meap-btn--primary">Search</button>
+    <a href="/je-review"
+       class="meap-btn"
+       {% if is_htmx %}hx-get="/je-review" hx-target="#je-list" hx-push-url="true"{% endif %}>
+      Reset
+    </a>
+  </form>
+
+  {% if query.q or query.status %}
+  <div class="meap-active-filters" aria-label="Applied filters">
+    <span class="meap-active-filters-label">Applied</span>
+    {% if query.q %}<a class="meap-filter-pill" href="{{ query_url(current_query, remove=['q'], reset={'page': 1}) }}" hx-get="{{ query_url(current_query, remove=['q'], reset={'page': 1}) }}" hx-target="#je-list" hx-push-url="true">Search: {{ query.q }} <span aria-hidden="true">×</span></a>{% endif %}
+    {% if query.status %}<a class="meap-filter-pill" href="{{ query_url(current_query, remove=['status'], reset={'page': 1}) }}" hx-get="{{ query_url(current_query, remove=['status'], reset={'page': 1}) }}" hx-target="#je-list" hx-push-url="true">Status: {{ query.status.value }} <span aria-hidden="true">×</span></a>{% endif %}
+  </div>
+  {% endif %}
+
+  {# ── Reviews table ─────────────────────────────────────────────────────── #}
+  <div class="meap-table-wrapper">
+    <table class="meap-table">
+      <thead>
+        <tr>
+          <th>Engagement</th>
+          <th>Period</th>
+          <th class="meap-col--num">Entries</th>
+          <th class="meap-col--num">Flagged</th>
+          <th class="meap-col--num">Approved</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if vm.items %}
+          {% for r in vm.items %}
+          <tr>
+            <td>
+              <a href="/je-review/{{ r.review_id }}"
+                 {% if is_htmx %}hx-get="/je-review/{{ r.review_id }}" hx-target="#main-content" hx-push-url="true"{% endif %}>
+                {{ r.engagement }}
+              </a>
+            </td>
+            <td>{{ r.period }}</td>
+            <td class="meap-col--num meap-num">{{ r.total_entries }}</td>
+            <td class="meap-col--num meap-num">
+              {% if r.flagged_count > 0 %}
+                <span class="meap-badge meap-badge--attention">{{ r.flagged_count }}</span>
+              {% else %}
+                {{ r.flagged_count }}
+              {% endif %}
+            </td>
+            <td class="meap-col--num meap-num">{{ r.approved_count }}</td>
+            <td>
+              {% if r.status.value == 'APPROVED' %}
+                <span class="meap-badge meap-badge--success">{{ r.status.value }}</span>
+              {% elif r.status.value in ('IN_REVIEW', 'FLAGGED') %}
+                <span class="meap-badge meap-badge--progress">{{ r.status.value }}</span>
+              {% elif r.status.value == 'REJECTED' %}
+                <span class="meap-badge meap-badge--critical">{{ r.status.value }}</span>
+              {% else %}
+                <span class="meap-badge">{{ r.status.value }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+        <tr>
+          <td colspan="6">
+            <div class="meap-empty-state">
+              <div class="meap-empty-state-title">No JE reviews found</div>
+              <p>Create a new review to start analyzing journal entries.</p>
+            </div>
+          </td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+
+    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {% if vm.total_pages > 1 %}
+    <div class="meap-pagination">
+      <span class="meap-pagination-info">Page {{ vm.page }} of {{ vm.total_pages }} ({{ vm.total_count }} total)</span>
+      <div class="meap-pagination-controls">
+        {% if query.page > 1 %}
+        <a href="{{ query_url(current_query, set_={'page': query.page - 1}) }}"
+           {% if is_htmx %}hx-get="{{ query_url(current_query, set_={'page': query.page - 1}) }}"
+           hx-target="#je-list" hx-push-url="true"{% endif %}>
+          ← Previous
+        </a>
+        {% else %}
+        <span class="disabled">← Previous</span>
+        {% endif %}
+        {% if query.page < vm.total_pages %}
+        <a href="{{ query_url(current_query, set_={'page': query.page + 1}) }}"
+           {% if is_htmx %}hx-get="{{ query_url(current_query, set_={'page': query.page + 1}) }}"
+           hx-target="#je-list" hx-push-url="true"{% endif %}>
+          Next →
+        </a>
+        {% else %}
+        <span class="disabled">Next →</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>

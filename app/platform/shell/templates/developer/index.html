@@ -1,0 +1,90 @@
+{# developer/index.html — Developer Diagnostics (Section 48) #}
+<div class="meap-page meap-list-report">
+  <div class="meap-page-header">
+    <div>
+      <div class="meap-eyebrow">Platform observability</div>
+      <h1 class="meap-page-title">Developer diagnostics</h1>
+      <p class="meap-page-subtitle">A bounded view of configuration, module contracts, permissions, and routes.</p>
+    </div>
+    <span class="meap-health"><span aria-hidden="true"></span> Healthy</span>
+  </div>
+
+  {# ── Configuration ─────────────────────────────────────────────────────── #}
+  <section class="meap-section">
+    <h2>Configuration</h2>
+    <div class="meap-config-grid">
+      {% for key, value in config.items() %}
+      <div class="meap-config-row">
+        <span class="meap-config-key">{{ key }}</span>
+        <span class="meap-config-value">{{ value }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# ── Registered Modules ────────────────────────────────────────────────── #}
+  <section class="meap-section">
+    <h2>Registered modules <span class="meap-heading-count">{{ modules | length }}</span></h2>
+    <div class="meap-table-wrapper"><table class="meap-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Route Prefix</th>
+          <th>Permissions</th>
+          <th>Navigation</th>
+          <th>Version</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for mod in modules %}
+        <tr>
+          <td><code>{{ mod.id }}</code></td>
+          <td>{{ mod.name }}</td>
+          <td><a href="{{ mod.route_prefix }}"><code>{{ mod.route_prefix }}</code></a></td>
+          <td>{{ mod.permissions | join(", ") }}</td>
+          <td>{{ "Yes" if mod.has_navigation else "No" }}</td>
+          <td>{{ mod.version }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+
+  {# ── Permissions ───────────────────────────────────────────────────────── #}
+  <section class="meap-section">
+    <h2>Registered permissions <span class="meap-heading-count">{{ permissions | length }}</span></h2>
+    <div class="meap-permissions">
+      {% for perm in permissions %}
+      <code class="meap-permission">{{ perm }}</code>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# ── Routes ─────────────────────────────────────────────────────────────── #}
+  <section class="meap-section">
+    <h2>Routes <span class="meap-heading-count">{{ routes | length }}</span></h2>
+    <div class="meap-table-wrapper"><table class="meap-table meap-table--compact">
+      <thead>
+        <tr><th>Method</th><th>Path</th><th>Name</th></tr>
+      </thead>
+      <tbody>
+        {% for route in routes %}
+        <tr>
+          <td><span class="meap-badge meap-method-{{ route.method }}">{{ route.method }}</span></td>
+          <td><code>{{ route.path }}</code></td>
+          <td>{{ route.name }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+
+  {# ── Correlation ID ────────────────────────────────────────────────────── #}
+  <section class="meap-section">
+    <div class="meap-info-row">
+      <span>Request Correlation ID:</span>
+      <code class="meap-correlation">{{ correlation_id }}</code>
+    </div>
+  </section>
+</div>
