@@ -55,3 +55,10 @@ Implemented the first complete self-hosted authentication path. It needs no SMTP
 ### Next recommended increment
 
 Add administrator-controlled credential re-enrollment and an access-review page, including forced session revocation, administrator reauthentication, audit events, and tests. Then test the same schema and migration against PostgreSQL.
+
+## 2026-08-13 — Local reset operations documentation
+
+- Documented a recoverable SQLite factory-reset procedure that moves `meap.db` aside before creating a new installation.
+- Clarified that database reset invalidates all users, credentials, sessions, audit history, and business records, while source code, `.venv`, configuration, and artifact files remain separate.
+- Documented optional artifact-directory preservation and the non-destructive expired-bootstrap enrollment reissue command.
+- Explicitly excluded PostgreSQL from the file-based SQLite reset procedure.

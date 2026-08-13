@@ -117,6 +117,46 @@ Do not share MEAP's credential tables directly with unrelated future application
 
 ## 8. Operational FAQ
 
+### How do I reset a local development installation?
+
+The bootstrap marker, users, credentials, sessions, audit history, and business records live in the database. For the default local SQLite installation, the safest complete reset is to stop MEAP and move the database aside rather than delete it:
+
+```bash
+# 1. Stop uvicorn with Control-C.
+
+# 2. Run these commands from the repository directory.
+mv meap.db meap.before-reset.db
+
+# 3. Create a new initial administrator enrollment.
+source .venv/bin/activate
+python -m app.platform.auth.cli bootstrap-admin \
+  --email your-email@example.com \
+  --display-name "Dhananjay" \
+  --organization "Your Organization"
+
+# 4. Start MEAP again.
+uvicorn app.main:app --reload --port 8000
+```
+
+This creates a fresh `meap.db`. The old installation remains recoverable in `meap.before-reset.db`. If that backup filename already exists, choose a different filename rather than overwriting it.
+
+Database reset does not remove `.venv`, source code, configuration, or files under `artifacts/`. If uploaded artifacts must also be reset, move that directory aside separately:
+
+```bash
+mv artifacts artifacts.before-reset
+```
+
+Do not use the SQLite reset procedure for PostgreSQL. Create a database backup and reset the intended PostgreSQL schema through the database administrator or deployment tooling. Never point a destructive reset at a database whose ownership is uncertain.
+
+If only the initial enrollment link expired, do not reset anything. Use:
+
+```bash
+python -m app.platform.auth.cli reissue-bootstrap-enrollment \
+  --base-url http://127.0.0.1:8000
+```
+
+This command works only while initial administrator enrollment is incomplete.
+
 ### Does the email address have to receive mail?
 
 No. It is an administrator-asserted identifier. MEAP sends no email in this release.
