@@ -80,19 +80,21 @@ After a change, verify:
 - A disabled module produces a 404 for its routes.
 - Permissions are still enforced on the server. Hiding a link never grants or removes access.
 
-## 3. Authentication: current state and production boundary
+## 3. Authentication
 
-MEAP currently contains an **authentication integration point**, not a completed login system.
+MEAP now includes a complete built-in `local_totp` adapter for controlled deployments:
 
-- `MEAP_AUTH_ENABLED=false` returns the local development identity.
-- `UserContext` is defined in `app/platform/auth/context.py`.
-- `require_permission(...)` enforces server-side permissions when authentication is enabled.
-- There are currently no provider routes, login page, session middleware, token verification, user store, or logout flow.
-- The current enabled-auth fallback also returns the development identity when no session user exists. This must be changed to fail closed before authentication is enabled outside local development.
+- Administrator-asserted, invite-only identities; no public registration.
+- Encrypted TOTP credentials and single-use recovery codes.
+- Opaque server-side sessions, revocation, idle/absolute expiry, and CSRF validation.
+- Fail-closed behavior whenever authentication is enabled and a valid session is absent.
+- A database bootstrap marker and host-side initial-administrator command.
 
-**Do not set `MEAP_AUTH_ENABLED=true` in a deployed environment until every item in section 3.5 is implemented and tested.** Merely changing that flag does not enable secure login.
+Use [`AUTHENTICATION-OPERATIONS.md`](AUTHENTICATION-OPERATIONS.md) for bootstrap, enrollment, key configuration, suspension, and deployment instructions. When `MEAP_AUTH_ENABLED=false`, the local developer identity still exists for trusted development and automated tests only.
 
-### 3.1 Gmail and Outlook terminology
+The remainder of this section describes the **future optional OIDC adapter**. It is not required by local TOTP and is not implemented yet.
+
+### 3.1 Future Google and Microsoft terminology
 
 The login options should be presented as **Sign in with Google** and **Sign in with Microsoft**. Gmail and Outlook are mail products; the identity providers are Google Identity and Microsoft Entra ID.
 
@@ -103,7 +105,7 @@ Use the server-side OpenID Connect Authorization Code flow. Provider registratio
 - [Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect)
 - [Microsoft identity platform OpenID Connect](https://learn.microsoft.com/en-us/entra/identity-platform/v2-protocols-oidc)
 
-### 3.2 Recommended configurable provider contract
+### 3.2 Future configurable OIDC provider contract
 
 Before implementing provider routes, extend `Settings` in `app/settings.py`. The following is the recommended contract; it is not present in the starter yet:
 
@@ -149,7 +151,7 @@ Validate settings at startup: authentication requires at least one provider, and
 
 `organizations` allows work or school Microsoft accounts from multiple Entra tenants. Use a specific tenant ID for a single-tenant enterprise deployment. Make that choice deliberately with the identity administrator.
 
-### 3.3 Provider registration
+### 3.3 Future provider registration
 
 Register one web application with each provider that may be enabled. Callback URLs must match exactly.
 
@@ -172,7 +174,7 @@ Microsoft:
 https://login.microsoftonline.com/{tenant}/v2.0/.well-known/openid-configuration
 ```
 
-### 3.4 Recommended implementation layout
+### 3.4 Future OIDC implementation layout
 
 Authentication belongs to Platform, not to a business module:
 
@@ -204,7 +206,7 @@ Implementation sequence:
 
 If the application needs durable user preferences, role assignments, or audit ownership, add a platform user table keyed by issuer and subject. A display name or email is profile data, not the primary identity.
 
-### 3.5 Authentication go-live checklist
+### 3.5 Future OIDC go-live checklist
 
 Before enabling authentication:
 
@@ -380,7 +382,7 @@ No. Keep modules independently understandable. Move a truly shared, cross-cuttin
 
 ### Can I enable login by setting `MEAP_AUTH_ENABLED=true`?
 
-Not yet. The starter exposes the integration boundary but does not include complete OIDC routes or verified sessions, and the current missing-user behavior does not fail closed. Implement and pass the go-live checklist first.
+Yes. This enables the implemented local TOTP adapter. Bootstrap the first administrator and configure independent production keys as documented in `AUTHENTICATION-OPERATIONS.md`. It does not enable Google or Microsoft OIDC.
 
 ### Is “Gmail login” different from “Google login”?
 
@@ -388,7 +390,7 @@ Use Google Identity for login. Gmail API access is a separate permission set and
 
 ### How do I enable only Google, only Microsoft, or both?
 
-Once the provider contract and routes in section 3 are implemented, set `MEAP_AUTH_PROVIDERS` to `["google"]`, `["microsoft"]`, or both values as JSON. The login page and accepted provider routes must read the same setting.
+Those OIDC adapters are intentionally deferred. The present release supports `MEAP_AUTH_METHOD=local_totp`. When OIDC is implemented, its configured provider list must remain explicit and independent of local credentials.
 
 ### Where should provider secrets live?
 

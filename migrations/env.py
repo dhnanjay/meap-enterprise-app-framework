@@ -20,6 +20,7 @@ from app.platform.database.base import Base
 from app.platform.database import models as _platform_models  # noqa: F401
 from app.platform.audit import models as _audit_models  # noqa: F401
 from app.platform.notebooks import models as _notebook_models  # noqa: F401
+from app.platform.auth import models as _auth_models  # noqa: F401
 
 # Module models:
 from app.modules.bank_reconciliation import models as _br_models  # noqa: F401

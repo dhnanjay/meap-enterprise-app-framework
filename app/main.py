@@ -18,11 +18,14 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.middleware.correlation import CorrelationIdMiddleware
+from app.middleware.authentication import AuthenticationMiddleware
 from app.modules.bank_reconciliation.module import MODULE as BankReconciliationModule
 from app.modules.journal_entry_review.module import MODULE as JournalEntryReviewModule
 from app.platform.database import base as db_base
 from app.platform.audit import models as _audit_models  # noqa: F401
 from app.platform.notebooks import models as _notebook_models  # noqa: F401
+from app.platform.auth import models as _auth_models  # noqa: F401
+from app.platform.auth.routes import router as auth_router
 from app.platform.database.session import init_session_factory
 from app.platform.diagnostics.routes import router as diagnostics_router
 from app.platform.errors.handlers import (
@@ -68,6 +71,18 @@ async def lifespan(app: FastAPI):
     """Application startup and shutdown lifecycle."""
     settings = get_settings()
     app.state.settings = settings
+
+    if settings.profile == "production" and settings.auth_enabled:
+        insecure_values = (
+            settings.session_hmac_key.startswith("local-"),
+            settings.token_hmac_key.startswith("local-"),
+            settings.credential_encryption_key_id.startswith("local-"),
+            not settings.credential_encryption_keys
+            and settings.credential_encryption_key
+            == "4G9HkM4pV4C2u_uMaY-7z8s8Q-OHN34JOj0H6jOO1V0=",
+        )
+        if any(insecure_values):
+            raise RuntimeError("Production authentication keys must be explicitly configured")
 
     # --- Database (Section 43) ---
     # Use module-qualified calls so test conftest can patch db_base.make_engine
@@ -123,6 +138,10 @@ def create_app() -> FastAPI:
 
     # --- Middleware (Section 46) ---
     app.add_middleware(CorrelationIdMiddleware)
+    app.add_middleware(AuthenticationMiddleware)
+
+    # Authentication is platform infrastructure, not a business module.
+    app.include_router(auth_router)
 
     # --- Static files (Section 22) ---
     static_dir = Path(__file__).parent / "platform" / "static"

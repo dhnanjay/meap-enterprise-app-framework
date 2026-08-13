@@ -1,0 +1,11 @@
+{% extends "auth/base.html" %}
+{% block auth_content %}
+<section class="auth-panel auth-stack" aria-labelledby="recovery-title">
+  <div><div class="meap-overline">Enrollment complete</div><h1 id="recovery-title">Save your recovery codes</h1></div>
+  <div class="auth-error"><strong>This is the only time these codes will be shown.</strong> Store them somewhere separate from your authenticator.</div>
+  <ul class="auth-codes">{% for code in recovery_codes %}<li>{{ code }}</li>{% endfor %}</ul>
+  <p>Each code works once. If you lose both your authenticator and these codes, an administrator must re-enroll your account.</p>
+  <p>Wait for the authenticator's six-digit code to change before your first sign-in; the confirmation code has already been consumed.</p>
+  <a class="meap-btn meap-btn--primary" href="/auth/login">Continue to sign in</a>
+</section>
+{% endblock %}

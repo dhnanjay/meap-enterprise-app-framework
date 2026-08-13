@@ -103,6 +103,9 @@ def render_page(
     ctx.setdefault("current_query", request.query_params)
     settings = getattr(request.app.state, "settings", None)
     ctx.setdefault("settings", settings)
+    current_user = getattr(request.state, "user", None)
+    ctx.setdefault("current_user", current_user)
+    ctx.setdefault("csrf_token", getattr(current_user, "csrf_token", None))
     ctx.setdefault("developer_area_enabled", settings.developer_area_enabled if settings else False)
     # Templates always render progressive-enhancement attributes. Native href,
     # action, and method remain authoritative when JavaScript is unavailable.
