@@ -21,16 +21,21 @@ from sqlalchemy.orm import Session
 
 from app.platform.audit.service import AuditService
 from app.platform.auth.models import (
+    AccessRole,
     AuthSession,
     BootstrapState,
     Credential,
     EnrollmentToken,
     LoginThrottle,
     Membership,
+    MembershipPermission,
+    MembershipRole,
     Organization,
     RecoveryCode,
+    RolePermission,
     User,
 )
+from app.platform.permissions.roles import DEFAULT_ROLE_BUNDLES, expand_permission_patterns
 from app.settings import Settings
 
 
@@ -125,6 +130,149 @@ class AuthService:
             raise ValueError("That email domain is not allowed for this deployment")
         return normalized
 
+    def ensure_default_roles(self, organization_id: str) -> dict[str, AccessRole]:
+        existing = {
+            role.role_key: role
+            for role in self.db.scalars(
+                select(AccessRole).where(AccessRole.organization_id == organization_id)
+            ).all()
+        }
+        for role_key, definition in DEFAULT_ROLE_BUNDLES.items():
+            if role_key in existing:
+                continue
+            role = AccessRole(
+                organization_id=organization_id,
+                role_key=role_key,
+                display_name=str(definition["display_name"]),
+                description=str(definition["description"]),
+                is_system=True,
+            )
+            role.permission_grants = [
+                RolePermission(permission_pattern=pattern)
+                for pattern in definition["patterns"]
+            ]
+            self.db.add(role)
+            existing[role_key] = role
+        self.db.flush()
+        return existing
+
+    def assign_role(
+        self,
+        membership: Membership,
+        role_key: str,
+        *,
+        assigned_by_user_id: str | None,
+    ) -> AccessRole:
+        roles = self.ensure_default_roles(membership.organization_id)
+        role = roles.get(role_key)
+        if role is None:
+            raise ValueError("Unknown workspace role")
+        self.db.execute(
+            delete(MembershipRole).where(MembershipRole.membership_id == membership.membership_id)
+        )
+        self.db.add(
+            MembershipRole(
+                membership_id=membership.membership_id,
+                role_id=role.role_id,
+                assigned_by_user_id=assigned_by_user_id,
+            )
+        )
+        membership.role = role_key
+        self.db.flush()
+        return role
+
+    def permissions_for_membership(
+        self, membership_id: str, registered_permissions: frozenset[str]
+    ) -> tuple[frozenset[str], tuple[str, ...]]:
+        assignments = self.db.scalars(
+            select(MembershipRole).where(MembershipRole.membership_id == membership_id)
+        ).all()
+        if not assignments:
+            membership = self.db.get(Membership, membership_id)
+            if membership is not None:
+                legacy_role = {
+                    "admin": "workspace_admin",
+                    "member": "operator",
+                }.get(membership.role, membership.role)
+                self.assign_role(
+                    membership,
+                    legacy_role if legacy_role in DEFAULT_ROLE_BUNDLES else "viewer",
+                    assigned_by_user_id=None,
+                )
+                self.db.commit()
+                assignments = self.db.scalars(
+                    select(MembershipRole).where(MembershipRole.membership_id == membership_id)
+                ).all()
+        patterns = frozenset(
+            grant.permission_pattern
+            for assignment in assignments
+            for grant in assignment.role.permission_grants
+        )
+        role_keys = tuple(sorted({assignment.role.role_key for assignment in assignments}))
+        resolved = set(expand_permission_patterns(patterns, registered_permissions))
+        overrides = self.db.scalars(
+            select(MembershipPermission).where(
+                MembershipPermission.membership_id == membership_id
+            )
+        ).all()
+        for override in overrides:
+            if override.permission not in registered_permissions:
+                continue
+            if override.effect == "allow":
+                resolved.add(override.permission)
+            elif override.effect == "deny":
+                resolved.discard(override.permission)
+        return frozenset(resolved), role_keys
+
+    def set_membership_permission(
+        self,
+        *,
+        membership: Membership,
+        permission: str,
+        enabled: bool,
+        actor_user_id: str,
+        registered_permissions: frozenset[str],
+    ) -> None:
+        if permission not in registered_permissions:
+            raise ValueError("Permission is not registered")
+        current_permissions, _ = self.permissions_for_membership(
+            membership.membership_id, registered_permissions
+        )
+        baseline_enabled = permission in current_permissions
+        existing = self.db.scalar(
+            select(MembershipPermission).where(
+                MembershipPermission.membership_id == membership.membership_id,
+                MembershipPermission.permission == permission,
+            )
+        )
+        desired_effect = "allow" if enabled else "deny"
+        if existing is None:
+            existing = MembershipPermission(
+                membership_id=membership.membership_id,
+                permission=permission,
+                effect=desired_effect,
+                assigned_by_user_id=actor_user_id,
+            )
+            self.db.add(existing)
+        else:
+            existing.effect = desired_effect
+            existing.assigned_by_user_id = actor_user_id
+            existing.assigned_at = now_utc()
+        AuditService(self.db).record(
+            event_type="auth.membership.permission_changed",
+            organization_id=membership.organization_id,
+            actor_user_id=actor_user_id,
+            entity_type="membership",
+            entity_id=membership.membership_id,
+            event_data={
+                "permission": permission,
+                "enabled": enabled,
+                "previously_enabled": baseline_enabled,
+            },
+            commit=False,
+        )
+        self.db.commit()
+
     def issue_enrollment(
         self, membership: Membership, *, created_by_user_id: str | None
     ) -> EnrollmentResult:
@@ -177,6 +325,7 @@ class AuthService:
         )
         self.db.add_all([organization, user, membership])
         self.db.flush()
+        self.assign_role(membership, "workspace_admin", assigned_by_user_id=None)
         result = self.issue_enrollment(membership, created_by_user_id=None)
         self.db.add(
             BootstrapState(
@@ -205,8 +354,12 @@ class AuthService:
         actor_user_id: str,
     ) -> EnrollmentResult:
         normalized = self.validate_invited_email(email)
-        if role not in {"admin", "member"}:
-            raise ValueError("Role must be admin or member")
+        if role == "admin":
+            role = "workspace_admin"
+        elif role == "member":
+            role = "operator"
+        if role not in DEFAULT_ROLE_BUNDLES:
+            raise ValueError("Unknown workspace role")
         user = self.db.scalar(select(User).where(User.normalized_email == normalized))
         if user is None:
             user = User(
@@ -247,6 +400,7 @@ class AuthService:
         else:
             membership.role = role
             membership.status = "pending"
+        self.assign_role(membership, role, assigned_by_user_id=actor_user_id)
         result = self.issue_enrollment(membership, created_by_user_id=actor_user_id)
         AuditService(self.db).record(
             event_type="auth.membership.invited",

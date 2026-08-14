@@ -22,6 +22,7 @@ from app.middleware.authentication import AuthenticationMiddleware
 from app.modules.bank_reconciliation.module import MODULE as BankReconciliationModule
 from app.modules.journal_entry_review.module import MODULE as JournalEntryReviewModule
 from app.platform.database import base as db_base
+from app.platform.database import models as _platform_models  # noqa: F401
 from app.platform.audit import models as _audit_models  # noqa: F401
 from app.platform.notebooks import models as _notebook_models  # noqa: F401
 from app.platform.auth import models as _auth_models  # noqa: F401
@@ -171,8 +172,15 @@ def create_app() -> FastAPI:
         # For now, search module names and descriptions.
         if q:
             qlower = q.lower()
-            for mod in registry.modules.values():
-                d = mod.definition
+            current_user = getattr(request.state, "user", None)
+            permissions = current_user.permissions if current_user else None
+            allowed_module_ids = {
+                item["module_id"]
+                for group in registry.get_navigation(permissions)
+                for item in group["items"]
+            }
+            for module_id in allowed_module_ids:
+                d = registry.modules[module_id].definition
                 if qlower in d.name.lower() or qlower in d.description.lower():
                     results.append({
                         "label": d.name,

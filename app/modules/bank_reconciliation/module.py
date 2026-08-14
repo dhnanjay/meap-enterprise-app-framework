@@ -19,7 +19,7 @@ from app.platform.registry.definitions import (
     NavigationDefinition,
 )
 
-from app.modules.bank_reconciliation.permissions import ALL_PERMISSIONS
+from app.modules.bank_reconciliation.permissions import ALL_PERMISSIONS, BANK_RECON_VIEW
 from app.modules.bank_reconciliation.routes import router
 
 MODULE = ModuleDefinition(
@@ -33,6 +33,7 @@ MODULE = ModuleDefinition(
         group="Accounting",
         order=20,
         icon="compare-arrows",
+        required_permission=BANK_RECON_VIEW,
     ),
     description="Bank statement reconciliation, exception management, and review workflows.",
     version="1.0.0",

@@ -12,6 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.middleware.correlation import get_correlation_id
+from app.platform.auth.context import UserContext, get_current_user
 from app.platform.database.session import get_db
 from app.platform.templates.rendering import render_page, render_fragment
 from app.settings import get_settings
@@ -19,9 +20,25 @@ from app.settings import get_settings
 router = APIRouter(prefix="/developer", tags=["developer"])
 
 
+def _require_workspace_admin(user: UserContext) -> None:
+    if "workspace_admin" not in user.roles and user.role not in {"admin", "workspace_admin"}:
+        from app.platform.errors.taxonomy import AuthorizationError
+
+        raise AuthorizationError(
+            module="platform",
+            operation="developer_diagnostics",
+            reason_code="PERMISSION_DENIED",
+            safe_message="Workspace administrator access is required",
+        )
+
+
 @router.get("", response_class=HTMLResponse)
-async def developer_home(request: Request):
+async def developer_home(
+    request: Request,
+    user: UserContext = Depends(get_current_user),
+):
     """Developer diagnostics dashboard."""
+    _require_workspace_admin(user)
     settings = get_settings()
     registry = request.app.state.registry
 
@@ -70,8 +87,12 @@ async def health_check(db: Session = Depends(get_db)):
 
 
 @router.get("/api/modules")
-async def modules_api(request: Request):
+async def modules_api(
+    request: Request,
+    user: UserContext = Depends(get_current_user),
+):
     """JSON API for module diagnostics."""
+    _require_workspace_admin(user)
     registry = request.app.state.registry
     return JSONResponse(
         content={

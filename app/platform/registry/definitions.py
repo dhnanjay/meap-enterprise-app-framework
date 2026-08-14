@@ -23,6 +23,7 @@ class NavigationDefinition:
     group: str = "General"
     order: int = 100
     icon: str | None = None
+    required_permission: str | None = None
 
 
 @dataclass(frozen=True)

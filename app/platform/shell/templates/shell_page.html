@@ -56,7 +56,7 @@
 
     <div class="meap-topbar-right">
       {% if current_user %}
-      {% if current_user.role == 'admin' %}
+      {% if current_user.role in ['admin', 'workspace_admin'] or 'workspace_admin' in current_user.roles %}
       <a href="/auth/admin/users" class="meap-btn meap-btn--quiet">Users</a>
       {% endif %}
       <span class="meap-environment">{{ current_user.display_name }}</span>

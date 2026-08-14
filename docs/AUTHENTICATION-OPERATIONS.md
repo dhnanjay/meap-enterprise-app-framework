@@ -59,6 +59,8 @@ This works only while the database bootstrap is incomplete. It invalidates the p
 5. The user scans the QR code and confirms a six-digit code.
 6. The user saves the ten recovery codes shown once.
 
+The administrator can then use **Application visibility and access** on the same page to enable or disable each registered application for that user. The setting changes both navigation visibility and direct route authorization. See [`ACCESS-CONTROL.md`](ACCESS-CONTROL.md).
+
 No email is sent. The administrator is responsible for confirming the recipient before sharing the enrollment URL.
 
 ## 4. Configuration

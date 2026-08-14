@@ -38,7 +38,10 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             with factory() as db:
                 auth_session = AuthService(db, settings).resolve_session(raw_token)
                 if auth_session:
-                    permissions = frozenset(request.app.state.registry.all_permissions)
+                    permissions, role_keys = AuthService(db, settings).permissions_for_membership(
+                        auth_session.membership_id,
+                        frozenset(request.app.state.registry.all_permissions),
+                    )
                     request.state.user = UserContext(
                         user_id=auth_session.user.user_id,
                         username=auth_session.user.normalized_email,
@@ -46,7 +49,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                         email=auth_session.user.email,
                         organization_id=auth_session.membership.organization_id,
                         membership_id=auth_session.membership_id,
-                        role=auth_session.membership.role,
+                        role=role_keys[0] if role_keys else auth_session.membership.role,
+                        roles=role_keys,
                         session_id=auth_session.session_id,
                         csrf_token=auth_session.csrf_token,
                         permissions=permissions,

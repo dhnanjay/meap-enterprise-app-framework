@@ -265,3 +265,52 @@ def test_complete_enrollment_login_and_logout_flow(
         )
         assert logged_out.status_code == 303
         assert "meap_session" not in client.cookies
+
+
+def test_navigation_deny_hides_link_and_blocks_direct_route(
+    db_engine, db_session, auth_settings, monkeypatch
+):
+    import app.main as main_module
+    import app.platform.database.base as db_base
+    from app.modules.bank_reconciliation.permissions import BANK_RECON_VIEW
+
+    service, membership, _secret, recovery_codes = bootstrap_and_enroll(
+        db_session, auth_settings
+    )
+    service.set_membership_permission(
+        membership=membership,
+        permission=BANK_RECON_VIEW,
+        enabled=False,
+        actor_user_id=membership.user_id,
+        registered_permissions=frozenset(
+            permission
+            for module in main_module.MODULES
+            for permission in module.permissions
+        ),
+    )
+
+    monkeypatch.setattr(main_module, "get_settings", lambda: auth_settings)
+    monkeypatch.setattr(db_base, "make_engine", lambda url=None: db_engine)
+    db_session.close()
+    app = main_module.create_app()
+    with TestClient(app) as client:
+        login_page = client.get("/auth/login")
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', login_page.text).group(1)
+        signed_in = client.post(
+            "/auth/login",
+            data={
+                "csrf_token": csrf,
+                "email": "alice@company.com",
+                "code": recovery_codes[0],
+                "next": "/",
+            },
+            follow_redirects=False,
+        )
+        assert signed_in.status_code == 303
+
+        workspace = client.get("/")
+        assert workspace.status_code == 200
+        assert 'href="/bank-recon"' not in workspace.text
+
+        direct = client.get("/bank-recon")
+        assert direct.status_code == 403

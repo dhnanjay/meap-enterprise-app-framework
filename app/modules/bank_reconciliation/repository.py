@@ -50,28 +50,39 @@ EXCEPTION_SORT = SortMapper(
 class BankReconciliationRepository:
     """All persistence for the bank_reconciliation module."""
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, organization_id: str) -> None:
         self._db = db
+        self._organization_id = organization_id
 
     # ── Reconciliations ──────────────────────────────────────────────────
 
     def create(self, recon: Reconciliation) -> Reconciliation:
+        if recon.organization_id != self._organization_id:
+            raise ValueError("Record organization does not match repository scope")
         self._db.add(recon)
         self._db.flush()
         return recon
 
     def get(self, reconciliation_id: str) -> Reconciliation | None:
-        return self._db.get(Reconciliation, reconciliation_id)
+        return self._db.scalar(select(Reconciliation).where(
+            Reconciliation.reconciliation_id == reconciliation_id,
+            Reconciliation.organization_id == self._organization_id,
+        ))
 
     def get_by_reference(self, reference: str) -> Reconciliation | None:
-        stmt = select(Reconciliation).where(Reconciliation.reference == reference)
+        stmt = select(Reconciliation).where(
+            Reconciliation.reference == reference,
+            Reconciliation.organization_id == self._organization_id,
+        )
         return self._db.execute(stmt).scalar_one_or_none()
 
     def list(
         self, query: ReconciliationQuery
     ) -> tuple[list[Reconciliation], int]:
         """Return (items, total_count) applying search, sort, pagination."""
-        stmt = select(Reconciliation)
+        stmt = select(Reconciliation).where(
+            Reconciliation.organization_id == self._organization_id
+        )
 
         if query.q:
             pattern = f"%{query.q}%"
@@ -111,18 +122,24 @@ class BankReconciliationRepository:
     # ── Exceptions ───────────────────────────────────────────────────────
 
     def create_exception(self, exc: ReconciliationException) -> ReconciliationException:
+        if exc.organization_id != self._organization_id:
+            raise ValueError("Record organization does not match repository scope")
         self._db.add(exc)
         self._db.flush()
         return exc
 
     def get_exception(self, exception_id: str) -> ReconciliationException | None:
-        return self._db.get(ReconciliationException, exception_id)
+        return self._db.scalar(select(ReconciliationException).where(
+            ReconciliationException.exception_id == exception_id,
+            ReconciliationException.organization_id == self._organization_id,
+        ))
 
     def list_exceptions(
         self, reconciliation_id: str, query: ExceptionQuery
     ) -> tuple[list[ReconciliationException], int]:
         stmt = select(ReconciliationException).where(
-            ReconciliationException.reconciliation_id == reconciliation_id
+            ReconciliationException.reconciliation_id == reconciliation_id,
+            ReconciliationException.organization_id == self._organization_id,
         )
 
         if query.status:
@@ -178,6 +195,7 @@ class BankReconciliationRepository:
         stmt = (
             select(ReconciliationException.status, func.count())
             .where(ReconciliationException.reconciliation_id == reconciliation_id)
+            .where(ReconciliationException.organization_id == self._organization_id)
             .group_by(ReconciliationException.status)
         )
         rows = self._db.execute(stmt).all()
@@ -185,6 +203,7 @@ class BankReconciliationRepository:
 
     def count_exceptions(self, reconciliation_id: str) -> int:
         stmt = select(func.count()).where(
-            ReconciliationException.reconciliation_id == reconciliation_id
+            ReconciliationException.reconciliation_id == reconciliation_id,
+            ReconciliationException.organization_id == self._organization_id,
         )
         return self._db.execute(stmt).scalar() or 0

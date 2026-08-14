@@ -38,9 +38,10 @@ logger = structlog.get_logger()
 class BankReconciliationService:
     """Business use cases for the bank_reconciliation module."""
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, organization_id: str = "local-development") -> None:
         self._db = db
-        self._repo = BankReconciliationRepository(db)
+        self._organization_id = organization_id
+        self._repo = BankReconciliationRepository(db, organization_id)
 
     # ── List reconciliations ─────────────────────────────────────────────
 
@@ -123,6 +124,7 @@ class BankReconciliationService:
             )
 
         recon = Reconciliation(
+            organization_id=self._organization_id,
             reference=reference,
             account_name=account_name,
             account_number=account_number,

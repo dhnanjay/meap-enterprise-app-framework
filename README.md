@@ -46,6 +46,8 @@ Read [`docs/DEVELOPER-CUSTOMIZATION-GUIDE.md`](docs/DEVELOPER-CUSTOMIZATION-GUID
 - Generating and reviewing Alembic migrations
 - Testing, debugging, and frequently encountered integration failures
 
+Read [`docs/ACCESS-CONTROL.md`](docs/ACCESS-CONTROL.md) for the generic role model, the administrator access matrix, per-user overrides, and the workspace data-ownership contract.
+
 > **Authentication:** MEAP includes self-hosted, administrator-issued TOTP login with encrypted credentials, recovery codes, server-side sessions, CSRF protection, and fail-closed access. It sends no email and does not verify mailbox ownership. Read [`docs/AUTHENTICATION-OPERATIONS.md`](docs/AUTHENTICATION-OPERATIONS.md) before deployment.
 
 ---
@@ -227,6 +229,7 @@ MODULE = ModuleDefinition(
         icon="compare",
         group="Accounting",
         order=20,
+        required_permission="bank_reconciliation.reconciliation.view",
     ),
     permissions=(
         "bank_reconciliation.reconciliation.view",

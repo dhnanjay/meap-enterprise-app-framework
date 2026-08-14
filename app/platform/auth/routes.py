@@ -22,6 +22,44 @@ from app.platform.templates.rendering import templates
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
+def _access_admin_context(
+    request: Request,
+    db: Session,
+    user: UserContext,
+    *,
+    invite_url: str | None = None,
+    error: str | None = None,
+) -> dict:
+    memberships = db.scalars(
+        select(Membership)
+        .where(Membership.organization_id == user.organization_id)
+        .order_by(Membership.created_at)
+    ).all()
+    registry = request.app.state.registry
+    navigation_items = [
+        item
+        for group in registry.get_navigation()
+        for item in group["items"]
+        if item.get("required_permission")
+    ]
+    service = AuthService(db, request.app.state.settings)
+    access = {
+        membership.membership_id: service.permissions_for_membership(
+            membership.membership_id,
+            frozenset(registry.all_permissions),
+        )[0]
+        for membership in memberships
+    }
+    return {
+        "current_user": user,
+        "memberships": memberships,
+        "navigation_items": navigation_items,
+        "membership_permissions": access,
+        "invite_url": invite_url,
+        "error": error,
+    }
+
+
 def _auth_page(request: Request, template_name: str, context: dict, status_code: int = 200) -> HTMLResponse:
     context = {"request": request, "settings": request.app.state.settings, **context}
     response = templates.TemplateResponse(request, template_name, context, status_code=status_code)
@@ -204,17 +242,13 @@ def user_admin(
     user: UserContext = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if user.role != "admin":
+    if "workspace_admin" not in user.roles and user.role not in {"admin", "workspace_admin"}:
         return _auth_page(request, "auth/forbidden.html", {}, 403)
-    memberships = db.scalars(
-        select(Membership).where(Membership.organization_id == user.organization_id).order_by(Membership.created_at)
-    ).all()
-    return _auth_page(request, "auth/users.html", {
-        "current_user": user,
-        "memberships": memberships,
-        "invite_url": None,
-        "error": None,
-    })
+    return _auth_page(
+        request,
+        "auth/users.html",
+        _access_admin_context(request, db, user),
+    )
 
 
 @router.post("/admin/users/invite", response_class=HTMLResponse)
@@ -227,7 +261,7 @@ def invite_user(
     user: UserContext = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if user.role != "admin":
+    if "workspace_admin" not in user.roles and user.role not in {"admin", "workspace_admin"}:
         return _auth_page(request, "auth/forbidden.html", {}, 403)
     if not _valid_session_csrf(user, csrf_token):
         return _auth_page(request, "auth/forbidden.html", {}, 403)
@@ -245,15 +279,44 @@ def invite_user(
         invite_url = str(request.base_url).rstrip("/") + f"/auth/enroll/{result.token}"
     except ValueError as exc:
         error = str(exc)
-    memberships = db.scalars(
-        select(Membership).where(Membership.organization_id == user.organization_id).order_by(Membership.created_at)
-    ).all()
-    return _auth_page(request, "auth/users.html", {
-        "current_user": user,
-        "memberships": memberships,
-        "invite_url": invite_url,
-        "error": error,
-    }, 400 if error else 200)
+    return _auth_page(
+        request,
+        "auth/users.html",
+        _access_admin_context(
+            request, db, user, invite_url=invite_url, error=error
+        ),
+        400 if error else 200,
+    )
+
+
+@router.post("/admin/users/{membership_id}/navigation-access")
+def set_navigation_access(
+    request: Request,
+    membership_id: str,
+    permission: str = Form(...),
+    enabled: bool = Form(...),
+    csrf_token: str = Form(...),
+    user: UserContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if "workspace_admin" not in user.roles and user.role not in {"admin", "workspace_admin"}:
+        return _auth_page(request, "auth/forbidden.html", {}, 403)
+    if not _valid_session_csrf(user, csrf_token):
+        return _auth_page(request, "auth/forbidden.html", {}, 403)
+    membership = db.get(Membership, membership_id)
+    if membership is None or membership.organization_id != user.organization_id:
+        return _auth_page(request, "auth/forbidden.html", {}, 403)
+    try:
+        AuthService(db, request.app.state.settings).set_membership_permission(
+            membership=membership,
+            permission=permission,
+            enabled=enabled,
+            actor_user_id=user.user_id,
+            registered_permissions=frozenset(request.app.state.registry.all_permissions),
+        )
+    except ValueError:
+        return _auth_page(request, "auth/forbidden.html", {}, 403)
+    return RedirectResponse("/auth/admin/users", status_code=303)
 
 
 @router.post("/admin/users/{membership_id}/suspend")
@@ -265,7 +328,11 @@ def suspend_user(
     db: Session = Depends(get_db),
 ):
     membership = db.get(Membership, membership_id)
-    if user.role != "admin" or membership is None or membership.organization_id != user.organization_id:
+    if (
+        ("workspace_admin" not in user.roles and user.role not in {"admin", "workspace_admin"})
+        or membership is None
+        or membership.organization_id != user.organization_id
+    ):
         return _auth_page(request, "auth/forbidden.html", {}, 403)
     if not _valid_session_csrf(user, csrf_token):
         return _auth_page(request, "auth/forbidden.html", {}, 403)

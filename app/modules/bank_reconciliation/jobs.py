@@ -30,6 +30,7 @@ def ingest_workbook(
     job_id: str,
     reconciliation_id: str,
     artifact_id: str,
+    organization_id: str,
     **kwargs: Any,
 ) -> None:
     """Parse an uploaded workbook and create reconciliation exceptions.
@@ -38,7 +39,7 @@ def ingest_workbook(
     In production this runs in a worker; in local dev, in a background task.
     """
     job_service = JobService(db)
-    repo = BankReconciliationRepository(db)
+    repo = BankReconciliationRepository(db, organization_id)
     recon = repo.get(reconciliation_id)
 
     if not recon:
@@ -89,6 +90,7 @@ def ingest_workbook(
 def seed_sample_exceptions(
     db: Session,
     reconciliation_id: str,
+    organization_id: str,
     count: int = 5,
 ) -> None:
     """Utility to create sample exception data for demo purposes."""
@@ -96,7 +98,7 @@ def seed_sample_exceptions(
     from decimal import Decimal
     import random
 
-    repo = BankReconciliationRepository(db)
+    repo = BankReconciliationRepository(db, organization_id)
     descriptions = [
         "Wire transfer - unmatched",
         "Bank fee not in books",
@@ -111,6 +113,7 @@ def seed_sample_exceptions(
 
     for i in range(count):
         exc = ReconciliationException(
+            organization_id=organization_id,
             reconciliation_id=reconciliation_id,
             transaction_date=datetime.now(timezone.utc) - timedelta(days=random.randint(1, 30)),
             description=random.choice(descriptions),

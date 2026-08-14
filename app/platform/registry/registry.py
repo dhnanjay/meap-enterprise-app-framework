@@ -106,6 +106,7 @@ class ModuleRegistry:
             "order": nav.order,
             "icon": nav.icon or d.icon,
             "href": d.route_prefix,
+            "required_permission": nav.required_permission,
         }
 
     # ------------------------------------------------------------------
@@ -135,7 +136,9 @@ class ModuleRegistry:
     # Navigation model (Section 12)
     # ------------------------------------------------------------------
 
-    def get_navigation(self) -> list[dict[str, Any]]:
+    def get_navigation(
+        self, permissions: frozenset[str] | None = None
+    ) -> list[dict[str, Any]]:
         """Return navigation items grouped and ordered for shell rendering.
 
         Returns a list of groups:
@@ -144,6 +147,9 @@ class ModuleRegistry:
         groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for mod in self._modules.values():
             if mod.navigation_item:
+                required = mod.navigation_item.get("required_permission")
+                if permissions is not None and required and required not in permissions:
+                    continue
                 groups[mod.navigation_item["group"]].append(mod.navigation_item)
 
         result = []

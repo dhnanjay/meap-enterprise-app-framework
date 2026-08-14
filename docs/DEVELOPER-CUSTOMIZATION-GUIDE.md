@@ -50,6 +50,7 @@ MODULE = ModuleDefinition(
         group="Accounting",           # sidebar section
         order=20,                      # order within the section
         icon="compare-arrows",        # reserved metadata; not rendered in v1
+        required_permission=BANK_RECON_VIEW,
     ),
     description="...",
     enabled=True,
@@ -66,6 +67,8 @@ The registry sorts groups alphabetically, then sorts items by `order` and `label
 - **Keep routes but omit navigation:** set `navigation=None`. This is appropriate for callback or supporting modules, not as a security control.
 - **Hide the Developer area:** set `MEAP_DEVELOPER_AREA_ENABLED=false`.
 
+When authentication is enabled, a workspace administrator can also enable or disable each registered application link for each user from **Users → Application visibility and access**. The module's `required_permission` must match the `require_permission(...)` dependency on its view routes. This one permission controls visibility while the route dependency enforces access. See [MEAP Access Control](ACCESS-CONTROL.md).
+
 Do not hard-code business links in `app/platform/shell/templates/shell_page.html`. That template owns platform chrome only: product identity, search, density, profile/status controls, responsive navigation, and the page content region.
 
 The `icon` field is intentionally not rendered in the current Quiet Enterprise navigation. Adding an icon library is a platform design decision, not a per-module customization.
@@ -78,7 +81,8 @@ After a change, verify:
 - Sidebar collapse expands the content region without clipping or horizontal page overflow.
 - The route works by direct URL, not only by clicking the link.
 - A disabled module produces a 404 for its routes.
-- Permissions are still enforced on the server. Hiding a link never grants or removes access.
+- The same missing view permission both hides the link and returns `403` for a direct request.
+- Action permissions remain independently enforced on the server.
 
 ## 3. Authentication
 
@@ -287,7 +291,9 @@ async def approve_vendor(
     user: UserContext = Depends(get_current_user),
     _permission=Depends(require_permission(VENDOR_APPROVE)),
 ):
-    vm = VendorReviewService(db).approve(vendor_id, approved_by=user.user_id)
+    vm = VendorReviewService(db, user.organization_id).approve(
+        vendor_id, approved_by=user.user_id
+    )
     return render_fragment(
         request,
         "vendor_review/fragments/status.html",
@@ -298,6 +304,8 @@ async def approve_vendor(
 ### 4.3 Database migration workflow
 
 Local/development/test profiles call `Base.metadata.create_all()` to make development startup convenient. That is not a substitute for migrations. Production uses Alembic.
+
+Every business table that contains user-visible or mutable workspace data must include `organization_id`. Repository constructors accept the logged-in organization and include it in every read, count, and mutation query. Do not perform a global lookup and filter after loading.
 
 After importing the new model in `migrations/env.py`:
 

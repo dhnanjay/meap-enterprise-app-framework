@@ -36,9 +36,10 @@ logger = structlog.get_logger()
 class JournalEntryReviewService:
     """Business use cases for the journal_entry_review module."""
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, organization_id: str = "local-development") -> None:
         self._db = db
-        self._repo = JournalEntryReviewRepository(db)
+        self._organization_id = organization_id
+        self._repo = JournalEntryReviewRepository(db, organization_id)
 
     # ── List reviews ─────────────────────────────────────────────────────
 
@@ -111,6 +112,7 @@ class JournalEntryReviewService:
             )
 
         review = JournalEntryReview(
+            organization_id=self._organization_id,
             engagement=engagement,
             period=period,
             source_artifact_id=source_artifact_id,

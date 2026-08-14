@@ -61,6 +61,87 @@ class Membership(Base):
 
     organization: Mapped[Organization] = relationship(lazy="joined")
     user: Mapped[User] = relationship(lazy="joined")
+    role_assignments: Mapped[list[MembershipRole]] = relationship(
+        back_populates="membership", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class AccessRole(Base):
+    """Workspace-scoped configurable bundle of permission patterns."""
+
+    __tablename__ = "auth_access_roles"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "role_key", name="uq_auth_role_org_key"),
+    )
+
+    role_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    organization_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("auth_organizations.organization_id"), nullable=False, index=True
+    )
+    role_key: Mapped[str] = mapped_column(String(80), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    is_system: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+
+    permission_grants: Mapped[list[RolePermission]] = relationship(
+        back_populates="role", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class RolePermission(Base):
+    __tablename__ = "auth_role_permissions"
+    __table_args__ = (
+        UniqueConstraint("role_id", "permission_pattern", name="uq_auth_role_permission"),
+    )
+
+    role_permission_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    role_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("auth_access_roles.role_id"), nullable=False, index=True
+    )
+    permission_pattern: Mapped[str] = mapped_column(String(240), nullable=False)
+
+    role: Mapped[AccessRole] = relationship(back_populates="permission_grants")
+
+
+class MembershipRole(Base):
+    __tablename__ = "auth_membership_roles"
+    __table_args__ = (
+        UniqueConstraint("membership_id", "role_id", name="uq_auth_membership_role"),
+    )
+
+    membership_role_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    membership_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("auth_memberships.membership_id"), nullable=False, index=True
+    )
+    role_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("auth_access_roles.role_id"), nullable=False, index=True
+    )
+    assigned_by_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    assigned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+
+    membership: Mapped[Membership] = relationship(back_populates="role_assignments")
+    role: Mapped[AccessRole] = relationship(lazy="joined")
+
+
+class MembershipPermission(Base):
+    """Explicit membership override used by the access-matrix UI."""
+
+    __tablename__ = "auth_membership_permissions"
+    __table_args__ = (
+        UniqueConstraint("membership_id", "permission", name="uq_auth_membership_permission"),
+    )
+
+    membership_permission_id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=uuid_str
+    )
+    membership_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("auth_memberships.membership_id"), nullable=False, index=True
+    )
+    permission: Mapped[str] = mapped_column(String(240), nullable=False)
+    effect: Mapped[str] = mapped_column(String(10), nullable=False)
+    assigned_by_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    assigned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
 
 
 class Credential(Base):

@@ -19,7 +19,7 @@ from app.platform.registry.definitions import (
     NavigationDefinition,
 )
 
-from app.modules.journal_entry_review.permissions import ALL_PERMISSIONS
+from app.modules.journal_entry_review.permissions import ALL_PERMISSIONS, JE_REVIEW_VIEW
 from app.modules.journal_entry_review.routes import router
 
 MODULE = ModuleDefinition(
@@ -33,6 +33,7 @@ MODULE = ModuleDefinition(
         group="Audit",
         order=30,
         icon="audit-activity",
+        required_permission=JE_REVIEW_VIEW,
     ),
     description="Journal entry risk analysis, review workflows, and approval tracking.",
     version="1.0.0",

@@ -24,6 +24,7 @@ class UserContext:
     organization_id: str | None = None
     membership_id: str | None = None
     role: str = "member"
+    roles: tuple[str, ...] = ()
     session_id: str | None = None
     csrf_token: str | None = None
     permissions: frozenset[str] = frozenset()
@@ -35,6 +36,8 @@ _DEV_USER = UserContext(
     user_id="dev-user",
     username="developer",
     display_name="Developer (Local)",
+    role="workspace_admin",
+    roles=("workspace_admin",),
     permissions=frozenset(),  # permissions granted at check time when auth disabled
 )
 

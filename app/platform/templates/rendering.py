@@ -93,7 +93,11 @@ def render_page(
     # Inject common context
     registry = getattr(request.app.state, "registry", None)
     if registry is not None:
-        ctx.setdefault("navigation", registry.get_navigation())
+        current_user = getattr(request.state, "user", None)
+        navigation_permissions = (
+            current_user.permissions if current_user is not None else None
+        )
+        ctx.setdefault("navigation", registry.get_navigation(navigation_permissions))
         ctx.setdefault("modules", registry.diagnostic_snapshot())
         ctx.setdefault("all_permissions", registry.all_permissions)
     ctx.setdefault(
@@ -106,7 +110,16 @@ def render_page(
     current_user = getattr(request.state, "user", None)
     ctx.setdefault("current_user", current_user)
     ctx.setdefault("csrf_token", getattr(current_user, "csrf_token", None))
-    ctx.setdefault("developer_area_enabled", settings.developer_area_enabled if settings else False)
+    developer_area_enabled = bool(settings and settings.developer_area_enabled)
+    if developer_area_enabled and settings.auth_enabled:
+        developer_area_enabled = bool(
+            current_user
+            and (
+                "workspace_admin" in current_user.roles
+                or current_user.role in {"admin", "workspace_admin"}
+            )
+        )
+    ctx.setdefault("developer_area_enabled", developer_area_enabled)
     # Templates always render progressive-enhancement attributes. Native href,
     # action, and method remain authoritative when JavaScript is unavailable.
     # Request-type detection below still decides fragment vs full-page output.

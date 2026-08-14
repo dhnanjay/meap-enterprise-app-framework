@@ -19,6 +19,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -53,11 +54,15 @@ class Reconciliation(Base):
     """A bank reconciliation run for a specific account/period."""
 
     __tablename__ = "br_reconciliations"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "reference", name="uq_br_reconciliation_org_reference"),
+    )
 
     reconciliation_id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=_uuid_str
     )
-    reference: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    organization_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    reference: Mapped[str] = mapped_column(String(50), index=True)
     account_name: Mapped[str] = mapped_column(String(200), nullable=False)
     account_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
     period: Mapped[str] = mapped_column(String(20), nullable=False)  # e.g. "2026-07"
@@ -71,6 +76,7 @@ class Reconciliation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     created_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_by_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
 
     exceptions: Mapped[list["ReconciliationException"]] = relationship(
         back_populates="reconciliation", cascade="all, delete-orphan"
@@ -88,6 +94,7 @@ class ReconciliationException(Base):
     exception_id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=_uuid_str
     )
+    organization_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     reconciliation_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("br_reconciliations.reconciliation_id"),
@@ -106,6 +113,8 @@ class ReconciliationException(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     resolved_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_by_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
 
     reconciliation: Mapped[Reconciliation] = relationship(back_populates="exceptions")
 

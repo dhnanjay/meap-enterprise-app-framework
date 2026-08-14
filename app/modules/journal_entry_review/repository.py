@@ -40,24 +40,32 @@ ENTRY_SORT = SortMapper(
 class JournalEntryReviewRepository:
     """All persistence for the journal_entry_review module."""
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, organization_id: str) -> None:
         self._db = db
+        self._organization_id = organization_id
 
     # ── Reviews ───────────────────────────────────────────────────────────
 
     def create(self, review: JournalEntryReview) -> JournalEntryReview:
+        if review.organization_id != self._organization_id:
+            raise ValueError("Record organization does not match repository scope")
         self._db.add(review)
         self._db.flush()
         return review
 
     def get(self, review_id: str) -> JournalEntryReview | None:
-        return self._db.get(JournalEntryReview, review_id)
+        return self._db.scalar(select(JournalEntryReview).where(
+            JournalEntryReview.review_id == review_id,
+            JournalEntryReview.organization_id == self._organization_id,
+        ))
 
     def list(
         self, query: JEReviewQuery
     ) -> tuple[list[JournalEntryReview], int]:
         """Return (items, total_count) applying search, sort, pagination."""
-        stmt = select(JournalEntryReview)
+        stmt = select(JournalEntryReview).where(
+            JournalEntryReview.organization_id == self._organization_id
+        )
 
         if query.q:
             pattern = f"%{query.q}%"
@@ -94,17 +102,25 @@ class JournalEntryReviewRepository:
     # ── Entries ───────────────────────────────────────────────────────────
 
     def create_entry(self, entry: JournalEntry) -> JournalEntry:
+        if entry.organization_id != self._organization_id:
+            raise ValueError("Record organization does not match repository scope")
         self._db.add(entry)
         self._db.flush()
         return entry
 
     def get_entry(self, entry_id: str) -> JournalEntry | None:
-        return self._db.get(JournalEntry, entry_id)
+        return self._db.scalar(select(JournalEntry).where(
+            JournalEntry.entry_id == entry_id,
+            JournalEntry.organization_id == self._organization_id,
+        ))
 
     def list_entries(
         self, review_id: str, query: EntryQuery
     ) -> tuple[list[JournalEntry], int]:
-        stmt = select(JournalEntry).where(JournalEntry.review_id == review_id)
+        stmt = select(JournalEntry).where(
+            JournalEntry.review_id == review_id,
+            JournalEntry.organization_id == self._organization_id,
+        )
 
         if query.status:
             stmt = stmt.where(JournalEntry.status == query.status)
@@ -145,11 +161,15 @@ class JournalEntryReviewRepository:
         stmt = (
             select(JournalEntry.risk_level, func.count())
             .where(JournalEntry.review_id == review_id)
+            .where(JournalEntry.organization_id == self._organization_id)
             .group_by(JournalEntry.risk_level)
         )
         rows = self._db.execute(stmt).all()
         return {row[0].value if hasattr(row[0], "value") else str(row[0]): row[1] for row in rows}
 
     def count_entries(self, review_id: str) -> int:
-        stmt = select(func.count()).where(JournalEntry.review_id == review_id)
+        stmt = select(func.count()).where(
+            JournalEntry.review_id == review_id,
+            JournalEntry.organization_id == self._organization_id,
+        )
         return self._db.execute(stmt).scalar() or 0

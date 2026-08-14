@@ -96,3 +96,42 @@ Enrollment completed, but a real browser still rejected the subsequent login for
 - Added the host-only `regenerate-recovery-codes --email` operation.
 - Rotation deletes all prior recovery-code records, generates ten new 128-bit single-use codes, and records an audit event.
 - This permits immediate recovery after codes are accidentally included in a screenshot without resetting the user or TOTP credential.
+
+## 2026-08-13 — Generic access matrix and workspace data ownership
+
+### Outcome
+
+Added the first administrator-managed access layer for a generic, data-heavy application platform. Roles describe reusable operational capabilities rather than accounting job titles, and administrators can make per-user application exceptions from the UI.
+
+### Added
+
+- Generic role bundles: workspace administrator, operator, analyst, auditor, and viewer.
+- Workspace-scoped role definitions, role permissions, membership roles, and explicit membership permission overrides.
+- A Users-page access matrix listing every registered business-application navigation link for every workspace membership.
+- Immediate per-user enable/disable changes with durable audit events.
+- `required_permission` in the module navigation contract.
+- Permission-filtered sidebar, dashboard, and application search results.
+- Matching server-side view permission checks, including direct URL denial.
+- Workspace administrator restriction for user administration and Developer diagnostics.
+- `organization_id` ownership on reconciliation, exception, journal-review, and journal-entry records.
+- Organization-scoped repositories for all reads, counts, lookups, and mutations.
+- Actor/timestamp ownership fields for future interaction-level auditability.
+- Alembic revision `3836580891fe`, including legacy data backfill and SQLite-safe batch operations.
+- [`ACCESS-CONTROL.md`](ACCESS-CONTROL.md) as the developer and operator contract.
+
+### Verification
+
+- Full suite: 135 passed.
+- Browser-flow test confirms an explicit deny removes the link and returns `403` for the direct route.
+- Live local-browser verification covered the administrator matrix at desktop and narrow widths, the Enabled/Disabled transition, filtered workspace navigation, and direct-route denial.
+- Contract tests cover permission-pattern expansion and permission-filtered navigation.
+- Service tests confirm bank-reconciliation and journal-review identifiers cannot cross workspace boundaries.
+- Fresh SQLite migration, autogenerate drift check, downgrade, re-upgrade, and second drift check succeeded on an isolated database.
+
+### Current boundary
+
+- The UI configures application-level view access first; action-level permissions remain role-driven and server-enforced.
+- Dashboard remains the authenticated workspace home.
+- Users and Developer are protected workspace-administration capabilities, not user-configurable business links.
+- PostgreSQL migration validation remains the next database portability check.
+- No code or repository state was published during this increment.

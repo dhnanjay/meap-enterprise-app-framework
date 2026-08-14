@@ -45,10 +45,12 @@ async def list_reconciliations(
     sort: str | None = None,
     direction: str = "asc",
     db: Session = Depends(get_db),
+    user: UserContext = Depends(get_current_user),
+    _perm=Depends(require_permission(BANK_RECON_VIEW)),
 ):
     """List reconciliations. All view state is in the URL."""
     query = ReconciliationQuery(q=q, page=page, page_size=page_size, sort=sort, direction=direction)
-    service = BankReconciliationService(db)
+    service = BankReconciliationService(db, user.organization_id or "local-development")
     vm = service.list_reconciliations(query)
 
     return render_page(
@@ -62,7 +64,10 @@ async def list_reconciliations(
 
 
 @router.get("/upload", name="br.upload")
-async def upload_form(request: Request):
+async def upload_form(
+    request: Request,
+    _perm=Depends(require_permission(BANK_RECON_CREATE)),
+):
     """Show the create reconciliation form."""
     return render_page(request, "bank_reconciliation/upload.html", {})
 
@@ -84,7 +89,7 @@ async def create_reconciliation(
     _perm=Depends(require_permission(BANK_RECON_CREATE)),
 ):
     """Create a new reconciliation. Returns the detail fragment."""
-    service = BankReconciliationService(db)
+    service = BankReconciliationService(db, user.organization_id or "local-development")
     vm = service.create_reconciliation(
         reference=reference,
         account_name=account_name,
@@ -109,9 +114,11 @@ async def detail(
     request: Request,
     reconciliation_id: str,
     db: Session = Depends(get_db),
+    user: UserContext = Depends(get_current_user),
+    _perm=Depends(require_permission(BANK_RECON_VIEW)),
 ):
     """Reconciliation detail — the workspace landing page."""
-    service = BankReconciliationService(db)
+    service = BankReconciliationService(db, user.organization_id or "local-development")
     vm = service.get_detail(reconciliation_id)
 
     return render_page(
@@ -138,6 +145,8 @@ async def exceptions(
     sort: str | None = None,
     direction: str = "asc",
     db: Session = Depends(get_db),
+    user: UserContext = Depends(get_current_user),
+    _perm=Depends(require_permission(BANK_RECON_VIEW)),
 ):
     """List exceptions for a reconciliation. Entire view = URL state."""
     query = ExceptionQuery(
@@ -151,7 +160,7 @@ async def exceptions(
         sort=sort,
         direction=direction,
     )
-    service = BankReconciliationService(db)
+    service = BankReconciliationService(db, user.organization_id or "local-development")
     vm = service.list_exceptions(reconciliation_id, query)
 
     return render_page(
@@ -174,7 +183,7 @@ async def resolve_exception(
     _perm=Depends(require_permission(BANK_RECON_RESOLVE)),
 ):
     """Resolve an exception. Returns the updated row fragment."""
-    service = BankReconciliationService(db)
+    service = BankReconciliationService(db, user.organization_id or "local-development")
     vm = service.resolve_exception(exception_id, user.user_id, notes)
 
     return render_fragment(
@@ -194,7 +203,7 @@ async def escalate_exception(
     _perm=Depends(require_permission(BANK_RECON_ESCALATE)),
 ):
     """Escalate an exception. Returns the updated row fragment."""
-    service = BankReconciliationService(db)
+    service = BankReconciliationService(db, user.organization_id or "local-development")
     vm = service.escalate_exception(exception_id, user.user_id, notes)
 
     return render_fragment(

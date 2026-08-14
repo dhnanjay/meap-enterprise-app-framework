@@ -40,12 +40,14 @@ async def list_reviews(
     sort: str | None = None,
     direction: str = "asc",
     db: Session = Depends(get_db),
+    user: UserContext = Depends(get_current_user),
+    _perm=Depends(require_permission(JE_REVIEW_VIEW)),
 ):
     """List JE reviews. All view state is in the URL."""
     query = JEReviewQuery(
         q=q, status=status, page=page, page_size=page_size, sort=sort, direction=direction
     )
-    service = JournalEntryReviewService(db)
+    service = JournalEntryReviewService(db, user.organization_id or "local-development")
     vm = service.list_reviews(query)
 
     return render_page(
@@ -59,7 +61,10 @@ async def list_reviews(
 
 
 @router.get("/new", name="je.new")
-async def new_review_form(request: Request):
+async def new_review_form(
+    request: Request,
+    _perm=Depends(require_permission(JE_REVIEW_CREATE)),
+):
     """Show the create form. Uses semantic HTML per Section 21."""
     return render_page(
         request,
@@ -81,7 +86,7 @@ async def create_review(
     _perm=Depends(require_permission(JE_REVIEW_CREATE)),
 ):
     """Create a new JE review."""
-    service = JournalEntryReviewService(db)
+    service = JournalEntryReviewService(db, user.organization_id or "local-development")
     vm = service.create_review(
         engagement=engagement,
         period=period,
@@ -102,9 +107,11 @@ async def detail(
     request: Request,
     review_id: str,
     db: Session = Depends(get_db),
+    user: UserContext = Depends(get_current_user),
+    _perm=Depends(require_permission(JE_REVIEW_VIEW)),
 ):
     """JE review detail — workspace landing page."""
-    service = JournalEntryReviewService(db)
+    service = JournalEntryReviewService(db, user.organization_id or "local-development")
     vm = service.get_detail(review_id)
 
     return render_page(
@@ -131,6 +138,8 @@ async def entries(
     sort: str | None = None,
     direction: str = "asc",
     db: Session = Depends(get_db),
+    user: UserContext = Depends(get_current_user),
+    _perm=Depends(require_permission(JE_REVIEW_VIEW)),
 ):
     """List entries for a review. Entire view = URL state."""
     query = EntryQuery(
@@ -144,7 +153,7 @@ async def entries(
         sort=sort,
         direction=direction,
     )
-    service = JournalEntryReviewService(db)
+    service = JournalEntryReviewService(db, user.organization_id or "local-development")
     vm = service.list_entries(review_id, query)
 
     return render_page(
@@ -163,10 +172,11 @@ async def flag_entry(
     entry_id: str,
     notes: str | None = Form(None),
     db: Session = Depends(get_db),
+    user: UserContext = Depends(get_current_user),
     _perm=Depends(require_permission(JE_REVIEW_FLAG)),
 ):
     """Flag an entry. Returns the updated row fragment."""
-    service = JournalEntryReviewService(db)
+    service = JournalEntryReviewService(db, user.organization_id or "local-development")
     vm = service.flag_entry(entry_id, notes)
 
     return render_fragment(
@@ -182,10 +192,11 @@ async def approve_entry(
     entry_id: str,
     notes: str | None = Form(None),
     db: Session = Depends(get_db),
+    user: UserContext = Depends(get_current_user),
     _perm=Depends(require_permission(JE_REVIEW_APPROVE)),
 ):
     """Approve an entry. Returns the updated row fragment."""
-    service = JournalEntryReviewService(db)
+    service = JournalEntryReviewService(db, user.organization_id or "local-development")
     vm = service.approve_entry(entry_id, notes)
 
     return render_fragment(
@@ -201,10 +212,11 @@ async def reject_entry(
     entry_id: str,
     notes: str | None = Form(None),
     db: Session = Depends(get_db),
+    user: UserContext = Depends(get_current_user),
     _perm=Depends(require_permission(JE_REVIEW_REJECT)),
 ):
     """Reject an entry. Returns the updated row fragment."""
-    service = JournalEntryReviewService(db)
+    service = JournalEntryReviewService(db, user.organization_id or "local-development")
     vm = service.reject_entry(entry_id, notes)
 
     return render_fragment(

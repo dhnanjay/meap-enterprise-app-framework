@@ -5,6 +5,7 @@ Models contain domain vocabulary and durable business structures.
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
@@ -13,6 +14,10 @@ from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Numeric, String, Te
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.platform.database.base import Base
+
+
+def _uuid_str() -> str:
+    return str(uuid.uuid4())
 
 
 class JEReviewStatus(str, Enum):
@@ -33,7 +38,8 @@ class RiskLevel(str, Enum):
 class JournalEntryReview(Base):
     __tablename__ = "je_reviews"
 
-    review_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    review_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid_str)
+    organization_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     engagement: Mapped[str] = mapped_column(String(200), nullable=False)
     period: Mapped[str] = mapped_column(String(50), nullable=False)
     source_artifact_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
@@ -47,6 +53,8 @@ class JournalEntryReview(Base):
         DateTime(timezone=True), default=lambda: datetime.now()
     )
     created_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_by_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
 
     entries: Mapped[list[JournalEntry]] = relationship(
         back_populates="review", cascade="all, delete-orphan"
@@ -56,7 +64,8 @@ class JournalEntryReview(Base):
 class JournalEntry(Base):
     __tablename__ = "je_review_entries"
 
-    entry_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    entry_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid_str)
+    organization_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     review_id: Mapped[str] = mapped_column(
         ForeignKey("je_reviews.review_id"), nullable=False
     )
@@ -73,5 +82,11 @@ class JournalEntry(Base):
         SAEnum(JEReviewStatus), default=JEReviewStatus.UNREVIEWED, nullable=False
     )
     reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now()
+    )
+    created_by_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_by_user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
 
     review: Mapped[JournalEntryReview] = relationship(back_populates="entries")
