@@ -306,3 +306,27 @@ Extended application-level user visibility controls with a separate, registry-dr
 - Alembic autogenerate check reports no schema drift.
 - No database migration is required; this increment activates the existing access-role schema.
 - No repository state has been published.
+
+## 2026-08-13 — Coding-agent engineering contract
+
+### Outcome
+
+Added a root-level [`AGENTS.md`](../AGENTS.md) as the normative, automatically discoverable operating contract for future LLM coding agents and automated development tools.
+
+### Documented
+
+- MEAP's priority order, state-location philosophy, Platform-to-module dependency direction, canonical module layers, and explicit registration model.
+- Protected semantics for tenant ownership, identity/membership separation, credentials, server-side sessions, CSRF, permissions, administrator safety, append-only audit, jobs, artifacts, evidence, migrations, UI behavior, and the notebook boundary.
+- A live schema map covering identity/access, Platform operations, and both example business modules, while distinguishing evolvable columns from sacrosanct meanings.
+- Step-by-step protocols for adding a module, modifying an existing capability, and safely disabling or removing modules, pages, routes, fields, tables, and security-sensitive behavior.
+- Data-heavy query, error/logging, UI/HTMX, future OIDC, and review-gated LLM module-generator rules.
+- Change-risk verification requirements, prohibited shortcuts, definition of done, durable progress logging, and the difference between a local checkpoint and a published GitHub revision.
+- The standing rule that no agent may upload, push, deploy, publish, create a remote, or open a pull request without explicit permission.
+
+### Integration and verification
+
+- Linked the agent contract from `README.md` and the developer customization guide so human and automated entry points converge on the same rules.
+- Compared the schema map and contracts with the live SQLAlchemy models, module registry, composition root, settings, current migration policy, and existing normative documentation.
+- Confirmed every local document referenced by the agent contract exists; full suite: 161 passed.
+- This is a documentation-only increment; no runtime behavior or database schema changed.
+- No repository state has been published.

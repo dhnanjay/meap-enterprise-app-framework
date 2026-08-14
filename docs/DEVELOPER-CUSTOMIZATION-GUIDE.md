@@ -4,6 +4,8 @@
 **Audience:** Engineers extending or deploying MEAP
 **Scope:** Navigation, authentication, new pages, backend logic, persistence, migrations, testing, and common failures
 
+LLM coding agents and automated development tools must first read the repository's root-level [`AGENTS.md`](../AGENTS.md). That contract identifies the protected architecture and schema semantics, defines the surgical change protocol, and governs agent verification and handoff behavior. This guide supplies the detailed human/developer procedures beneath that contract.
+
 This guide describes the code that exists in this repository and the supported path for extending it. Read the [MEAP Design Language](MEAP-DESIGN-LANGUAGE.md) before building a new screen, and use the [live style guide](meap-styleguide.html) while implementing templates.
 
 Notebook work has a separate normative boundary. Read the [Notebook Security Model](NOTEBOOK-SECURITY-MODEL.md) before adding notebook metadata, links, dependencies, or execution. The current release contains a registry only and exposes no notebook routes or runtime.

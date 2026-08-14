@@ -41,6 +41,8 @@ Open `http://localhost:8000` in your browser.
 
 ## Developer Customization
 
+Coding agents and automated development tools must read the root-level [`AGENTS.md`](AGENTS.md) before changing the repository. It is the normative engineering contract for protected architecture and schema semantics, surgical extension/removal, security boundaries, verification, progress logging, and the prohibition on publishing without explicit permission.
+
 Read [`docs/DEVELOPER-CUSTOMIZATION-GUIDE.md`](docs/DEVELOPER-CUSTOMIZATION-GUIDE.md) before extending the starter. It documents the repository's actual extension points for:
 
 - Configuring, ordering, hiding, and disabling navigation entries
