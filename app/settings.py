@@ -56,6 +56,7 @@ class Settings(BaseSettings):
 
     # These defaults are development-only. Production startup rejects them.
     session_hmac_key: str = "local-session-hmac-key-change-before-production"
+    csrf_key: str = "local-csrf-key-change-before-production"
     token_hmac_key: str = "local-token-hmac-key-change-before-production"
     credential_encryption_key: str = "4G9HkM4pV4C2u_uMaY-7z8s8Q-OHN34JOj0H6jOO1V0="
     credential_encryption_keys: str = ""

@@ -397,6 +397,7 @@ Settings are loaded from environment variables with typed defaults (§55):
 | `MEAP_ADMISSION_MODE` | `invite_only` | Administrator-issued enrollment; `disabled` stops new enrollment |
 | `MEAP_ALLOWED_EMAIL_DOMAINS` | empty | Optional comma-separated restriction on administrator-asserted addresses |
 | `MEAP_SESSION_HMAC_KEY` | local-only value | Independent server-side session token HMAC key |
+| `MEAP_CSRF_KEY` | local-only value | Independent signing key for short-lived pre-authentication form tokens |
 | `MEAP_TOKEN_HMAC_KEY` | local-only value | Independent enrollment/recovery token HMAC key |
 | `MEAP_CREDENTIAL_ENCRYPTION_KEY` | local-only value | Base64-encoded 32-byte AES-GCM key for TOTP seeds |
 | `MEAP_CREDENTIAL_ENCRYPTION_KEYS` | empty | Production JSON keyring mapping key IDs to base64 AES-GCM keys |

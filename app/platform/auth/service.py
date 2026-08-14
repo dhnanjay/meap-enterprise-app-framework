@@ -345,6 +345,23 @@ class AuthService:
         )
         return ["-".join(code[index:index + 8] for index in range(0, 32, 8)) for code in raw_codes]
 
+    def regenerate_recovery_codes(self, user_id: str) -> list[str]:
+        """Replace all recovery codes from a trusted host-side operation."""
+        user = self.db.get(User, user_id)
+        if user is None or not user.is_active:
+            raise ValueError("Active user not found")
+        codes = self._replace_recovery_codes(user_id)
+        AuditService(self.db).record(
+            event_type="auth.recovery_codes.regenerated",
+            actor_user_id=user_id,
+            entity_type="user",
+            entity_id=user_id,
+            event_data={"operation_source": "host_cli"},
+            commit=False,
+        )
+        self.db.commit()
+        return codes
+
     def _matching_counter(self, secret: str, code: str) -> int | None:
         submitted = re.sub(r"\s+", "", code)
         current = int(now_utc().timestamp()) // 30

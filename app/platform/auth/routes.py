@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import hmac
-import secrets
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app.middleware.authentication import session_cookie_name
 from app.platform.audit.service import AuditService
@@ -20,8 +20,6 @@ from app.platform.database.session import get_db
 from app.platform.templates.rendering import templates
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
-LOGIN_CSRF_COOKIE = "meap_login_form_csrf"
-ENROLLMENT_CSRF_COOKIE = "meap_enrollment_form_csrf"
 
 
 def _auth_page(request: Request, template_name: str, context: dict, status_code: int = 200) -> HTMLResponse:
@@ -39,28 +37,24 @@ def _auth_page(request: Request, template_name: str, context: dict, status_code:
     return response
 
 
-def _set_form_csrf(
-    response: HTMLResponse,
-    request: Request,
-    token: str,
-    *,
-    cookie_name: str,
-    cookie_path: str,
-) -> None:
-    response.set_cookie(
-        cookie_name,
-        token,
-        httponly=True,
-        secure=request.app.state.settings.profile == "production",
-        samesite="lax",
-        path=cookie_path,
-        max_age=900,
+def _form_csrf(request: Request, *, purpose: str) -> str:
+    serializer = URLSafeTimedSerializer(
+        request.app.state.settings.csrf_key,
+        salt="meap-preauth-form-csrf-v1",
     )
+    return serializer.dumps({"purpose": purpose})
 
 
-def _valid_form_csrf(request: Request, submitted: str, *, cookie_name: str) -> bool:
-    cookie = request.cookies.get(cookie_name, "")
-    return bool(cookie and submitted and hmac.compare_digest(cookie, submitted))
+def _valid_form_csrf(request: Request, submitted: str, *, purpose: str) -> bool:
+    serializer = URLSafeTimedSerializer(
+        request.app.state.settings.csrf_key,
+        salt="meap-preauth-form-csrf-v1",
+    )
+    try:
+        payload = serializer.loads(submitted, max_age=900)
+    except (BadSignature, SignatureExpired):
+        return False
+    return hmac.compare_digest(str(payload.get("purpose", "")), purpose)
 
 
 def _safe_next(value: str) -> str:
@@ -76,18 +70,11 @@ def _valid_session_csrf(user: UserContext, submitted: str) -> bool:
 def login_page(request: Request, next: str = "/"):
     if getattr(request.state, "user", None):
         return RedirectResponse(_safe_next(next), status_code=303)
-    csrf = secrets.token_urlsafe(24)
+    csrf = _form_csrf(request, purpose="login")
     response = _auth_page(
         request,
         "auth/login.html",
         {"csrf_token": csrf, "next_path": _safe_next(next), "error": None},
-    )
-    _set_form_csrf(
-        response,
-        request,
-        csrf,
-        cookie_name=LOGIN_CSRF_COOKIE,
-        cookie_path="/auth/login",
     )
     response.headers["Cache-Control"] = "no-store"
     return response
@@ -102,7 +89,7 @@ def login(
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    if not _valid_form_csrf(request, csrf_token, cookie_name=LOGIN_CSRF_COOKIE):
+    if not _valid_form_csrf(request, csrf_token, purpose="login"):
         return _auth_page(request, "auth/login.html", {
             "csrf_token": csrf_token,
             "next_path": _safe_next(next),
@@ -134,7 +121,6 @@ def login(
         path="/",
         max_age=settings.session_absolute_lifetime_hours * 3600,
     )
-    response.delete_cookie(LOGIN_CSRF_COOKIE, path="/auth/login")
     return response
 
 
@@ -160,7 +146,7 @@ def enrollment_page(request: Request, token: str, db: Session = Depends(get_db))
     enrollment = service.get_enrollment(token)
     if enrollment is None:
         return _auth_page(request, "auth/enrollment_invalid.html", {}, 410)
-    csrf = secrets.token_urlsafe(24)
+    csrf = _form_csrf(request, purpose=f"enrollment:{enrollment.enrollment_id}")
     response = _auth_page(request, "auth/enroll.html", {
         "token": token,
         "csrf_token": csrf,
@@ -168,14 +154,6 @@ def enrollment_page(request: Request, token: str, db: Session = Depends(get_db))
         "membership": enrollment.membership,
         "error": None,
     })
-    enrollment_path = f"/auth/enroll/{token}"
-    _set_form_csrf(
-        response,
-        request,
-        csrf,
-        cookie_name=ENROLLMENT_CSRF_COOKIE,
-        cookie_path=enrollment_path,
-    )
     response.headers.update({"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
     return response
 
@@ -195,7 +173,7 @@ def confirm_enrollment(
     if not _valid_form_csrf(
         request,
         csrf_token,
-        cookie_name=ENROLLMENT_CSRF_COOKIE,
+        purpose=f"enrollment:{enrollment.enrollment_id}",
     ):
         error = "The enrollment form expired. Refresh and try again."
     else:
@@ -206,10 +184,6 @@ def confirm_enrollment(
                 "recovery_codes": recovery_codes,
             })
             response.headers.update({"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
-            response.delete_cookie(
-                ENROLLMENT_CSRF_COOKIE,
-                path=f"/auth/enroll/{token}",
-            )
             return response
         except ValueError as exc:
             error = str(exc)

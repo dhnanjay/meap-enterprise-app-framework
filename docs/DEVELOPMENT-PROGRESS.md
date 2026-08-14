@@ -76,3 +76,23 @@ Opening or refreshing the login page after opening an enrollment page replaced a
 - Scoped each enrollment cookie to its exact one-time enrollment URL.
 - Added browser-flow coverage that opens login between enrollment-page load and enrollment confirmation.
 - Kept the enrollment token, TOTP secret, and session security model unchanged.
+
+## 2026-08-13 — Stateless pre-authentication CSRF tokens
+
+### Live-browser finding
+
+Enrollment completed, but a real browser still rejected the subsequent login form because the pre-authentication cookie was unavailable or replaced. The database confirmed that the administrator membership and bootstrap were active; the failure was isolated to login-form CSRF state.
+
+### Correction
+
+- Replaced pre-authentication CSRF cookies with signed, purpose-bound, 15-minute form tokens.
+- Bound login tokens to `login` and enrollment tokens to the exact enrollment database record.
+- Added a separate `MEAP_CSRF_KEY`; production refuses its committed local default.
+- Preserved per-session CSRF validation for authenticated unsafe requests.
+- Removed browser cookie ordering, tab replacement, hostname, and cookie-path behavior from enrollment and login form validity.
+
+### Recovery-code exposure response
+
+- Added the host-only `regenerate-recovery-codes --email` operation.
+- Rotation deletes all prior recovery-code records, generates ten new 128-bit single-use codes, and records an audit event.
+- This permits immediate recovery after codes are accidentally included in a screenshot without resetting the user or TOTP credential.

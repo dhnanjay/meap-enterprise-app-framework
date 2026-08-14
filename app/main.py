@@ -75,6 +75,7 @@ async def lifespan(app: FastAPI):
     if settings.profile == "production" and settings.auth_enabled:
         insecure_values = (
             settings.session_hmac_key.startswith("local-"),
+            settings.csrf_key.startswith("local-"),
             settings.token_hmac_key.startswith("local-"),
             settings.credential_encryption_key_id.startswith("local-"),
             not settings.credential_encryption_keys

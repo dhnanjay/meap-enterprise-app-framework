@@ -87,6 +87,7 @@ Assign the outputs separately:
 MEAP_CREDENTIAL_ENCRYPTION_KEYS='{"prod-v1":"<base64 32-byte key>"}'
 MEAP_CREDENTIAL_ENCRYPTION_KEY_ID=prod-v1
 MEAP_SESSION_HMAC_KEY=<independent random value>
+MEAP_CSRF_KEY=<independent random value>
 MEAP_TOKEN_HMAC_KEY=<independent random value>
 ```
 
@@ -107,6 +108,13 @@ The authentication schema is database-neutral SQLAlchemy and has an Alembic migr
 ## 6. Lost device and offboarding
 
 - A recovery code can be entered in the ordinary authentication-code field. Each code succeeds once.
+- If recovery codes are exposed, replace them from the trusted application host. This immediately invalidates every previous recovery code:
+
+```bash
+python -m app.platform.auth.cli regenerate-recovery-codes \
+  --email user@example.com
+```
+
 - If the device and recovery codes are both lost, an administrator must issue a new enrollment in a future recovery-management increment. Never reveal the old seed.
 - To offboard a user now, choose **Suspend**. This changes the membership state and revokes its active sessions.
 - Administrators cannot suspend their own active membership through the UI.

@@ -114,6 +114,25 @@ def test_totp_replay_is_rejected_and_recovery_code_is_single_use(db_session, aut
     assert reused is None
 
 
+def test_regenerating_recovery_codes_invalidates_every_old_code(db_session, auth_settings):
+    service, membership, _secret, old_codes = bootstrap_and_enroll(db_session, auth_settings)
+    new_codes = service.regenerate_recovery_codes(membership.user_id)
+    assert len(new_codes) == 10
+    assert service.authenticate(
+        email=membership.user.email,
+        code=old_codes[0],
+        ip="127.0.0.10",
+        user_agent="pytest",
+    ) is None
+    replacement = service.authenticate(
+        email=membership.user.email,
+        code=new_codes[0],
+        ip="127.0.0.11",
+        user_agent="pytest",
+    )
+    assert replacement is not None and replacement.used_recovery_code
+
+
 def test_domain_allowlist_restricts_admin_asserted_invites(db_session, auth_settings):
     settings = auth_settings.model_copy(update={"allowed_email_domains": "company.com"})
     service = AuthService(db_session, settings)
@@ -160,6 +179,29 @@ def test_auth_enabled_redirects_anonymous_requests(db_engine, auth_settings, mon
         login = client.get("/auth/login")
         assert login.status_code == 200
         assert "Sign in to MEAP Test" in login.text
+
+
+def test_login_rejects_a_tampered_signed_form_token(db_engine, auth_settings, monkeypatch):
+    import app.main as main_module
+    import app.platform.database.base as db_base
+
+    monkeypatch.setattr(main_module, "get_settings", lambda: auth_settings)
+    monkeypatch.setattr(db_base, "make_engine", lambda url=None: db_engine)
+    app = main_module.create_app()
+    with TestClient(app) as client:
+        login = client.get("/auth/login")
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', login.text).group(1)
+        response = client.post(
+            "/auth/login",
+            data={
+                "csrf_token": csrf + "tampered",
+                "email": "nobody@example.com",
+                "code": "000000",
+                "next": "/",
+            },
+        )
+        assert response.status_code == 403
+        assert "sign-in form expired" in response.text
 
 
 def test_complete_enrollment_login_and_logout_flow(
