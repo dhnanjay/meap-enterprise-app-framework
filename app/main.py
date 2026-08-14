@@ -28,6 +28,7 @@ from app.platform.notebooks import models as _notebook_models  # noqa: F401
 from app.platform.auth import models as _auth_models  # noqa: F401
 from app.platform.auth.routes import router as auth_router
 from app.platform.database.session import init_session_factory
+from app.platform.database.migrations import require_current_database
 from app.platform.diagnostics.routes import router as diagnostics_router
 from app.platform.errors.handlers import (
     generic_error_handler,
@@ -93,10 +94,14 @@ async def lifespan(app: FastAPI):
     init_session_factory(session_factory)
     app.state.engine = engine
 
-    # Create tables (for local/dev — production uses Alembic migrations)
-    if settings.profile in ("local", "development", "test"):
+    # Tests use isolated metadata; every runnable deployment uses Alembic as
+    # the single schema authority.
+    if settings.profile == "test":
         db_base.Base.metadata.create_all(bind=engine)
         logger.info("database.tables_created", profile=settings.profile)
+    else:
+        require_current_database(settings.database_url, engine=engine)
+        logger.info("database.revision_current", profile=settings.profile)
 
     # --- Module Registry (Section 9) ---
     registry = build_registry(MODULES)

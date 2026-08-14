@@ -146,3 +146,39 @@ Added the first administrator-managed access layer for a generic, data-heavy app
 - Backed up the existing local database as `meap.before-workspace-access-20260813.db`, stamped its previously empty Alembic baseline, and applied revision `3836580891fe`.
 - Verified both users, all four per-user access overrides, and all four reconciliation records survived migration.
 - Verified the live authenticated routes `/`, `/bank-recon`, `/je-review`, and `/auth/admin/users` all return HTTP 200 after migration.
+
+## 2026-08-13 — Database lifecycle hardening
+
+### Outcome
+
+Made Alembic the single schema authority for every runnable MEAP environment, preventing an old database schema from surfacing later as non-working application links or SQL errors.
+
+### Added
+
+- `meap db status` for read-only revision inspection.
+- `meap db upgrade` for migration to head.
+- Automatic timestamped SQLite backup through SQLite's consistent backup API before schema changes.
+- Explicit, backed-up downgrade command for controlled migration verification.
+- Narrow legacy-schema fingerprinting for databases created by historical local `create_all()` startup.
+- Fail-closed refusal to stamp unknown unversioned schemas.
+- Startup revision enforcement for local, development, and production profiles.
+- Automatic safe database preparation before authentication host commands.
+- Database revision status in `/developer/health`.
+- [`DATABASE-OPERATIONS.md`](DATABASE-OPERATIONS.md) with first-install, upgrade, recovery, downgrade, and PostgreSQL procedures.
+
+### Verification scope
+
+- Fresh SQLite installation to head.
+- SQLite backup creation before downgrade and re-upgrade.
+- Startup rejection while the database is behind head.
+- Recognized unversioned legacy schema stamping, upgrade, and business-record preservation.
+- Refusal of an unknown unversioned schema.
+- Health response exposes current and expected revisions.
+- Installed `meap db` entry point exercised through a fresh upgrade, backed-up downgrade, backed-up re-upgrade, and final current-status check on a disposable SQLite database.
+- Full application test suite and Alembic drift check.
+
+### Policy
+
+- Test profile may use isolated metadata creation; runnable deployments may not.
+- PostgreSQL backup remains an operator/deployment responsibility.
+- No code or repository state was published during this increment.

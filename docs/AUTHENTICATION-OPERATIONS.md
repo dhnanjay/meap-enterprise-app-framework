@@ -25,11 +25,12 @@ TOTP is not phishing-resistant and does not provide automatic corporate offboard
 
 ## 2. Local bootstrap
 
-Install dependencies and start with a migrated or local auto-created database:
+Install dependencies and create or upgrade the database before bootstrap:
 
 ```bash
 source .venv/bin/activate
 pip install -e ".[dev]"
+meap db upgrade
 python -m app.platform.auth.cli bootstrap-admin \
   --email admin@example.com \
   --display-name "MEAP Administrator" \
@@ -37,7 +38,7 @@ python -m app.platform.auth.cli bootstrap-admin \
   --base-url http://127.0.0.1:8000
 ```
 
-The command writes the bootstrap marker to the database immediately and prints a one-time enrollment URL. It cannot create a second initial administrator.
+The authentication CLI also checks and safely upgrades the database before accessing authentication tables. For SQLite, a required upgrade creates a timestamped backup. The command then writes the bootstrap marker to the database immediately and prints a one-time enrollment URL. It cannot create a second initial administrator.
 
 The `--base-url` port must match the port used to start Uvicorn. For example, when Uvicorn uses `--port 8022`, pass `--base-url http://127.0.0.1:8022`.
 
@@ -99,13 +100,14 @@ MEAP_TOKEN_HMAC_KEY=<independent random value>
 
 ## 5. Database and migrations
 
-Local, development, and test profiles create missing tables automatically. Production uses Alembic:
+Alembic is the schema authority for every runnable local, development, and production database:
 
 ```bash
-alembic upgrade head
+meap db status
+meap db upgrade
 ```
 
-The authentication schema is database-neutral SQLAlchemy and has an Alembic migration. SQLite remains the zero-configuration default; PostgreSQL is selected through `MEAP_DATABASE_URL`. OIDC identities have their own reserved table so a future identity provider does not require business-table redesign.
+The application refuses to start against a stale schema and reports revision state through `/developer/health`. SQLite remains the zero-configuration default; PostgreSQL is selected through `MEAP_DATABASE_URL`. Read [`DATABASE-OPERATIONS.md`](DATABASE-OPERATIONS.md) before deployment.
 
 ## 6. Lost device and offboarding
 

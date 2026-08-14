@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.middleware.correlation import get_correlation_id
 from app.platform.auth.context import UserContext, get_current_user
 from app.platform.database.session import get_db
+from app.platform.database.migrations import get_migration_status
 from app.platform.templates.rendering import render_page, render_fragment
 from app.settings import get_settings
 
@@ -74,7 +75,7 @@ async def developer_home(
 
 
 @router.get("/health")
-async def health_check(db: Session = Depends(get_db)):
+async def health_check(request: Request, db: Session = Depends(get_db)):
     """Lightweight health check for deployment probes."""
     checks = {"status": "healthy", "checks": {}}
     try:
@@ -82,6 +83,21 @@ async def health_check(db: Session = Depends(get_db)):
         checks["checks"]["database"] = "ok"
     except Exception as e:
         checks["checks"]["database"] = f"error: {e}"
+        checks["status"] = "unhealthy"
+    try:
+        revision = get_migration_status(
+            request.app.state.settings.database_url,
+            engine=request.app.state.engine,
+        )
+        checks["checks"]["database_revision"] = {
+            "status": "current" if revision.is_current else "upgrade_required",
+            "current": revision.current_label,
+            "expected": revision.head_label,
+        }
+        if not revision.is_current:
+            checks["status"] = "unhealthy"
+    except Exception as exc:
+        checks["checks"]["database_revision"] = f"error: {exc}"
         checks["status"] = "unhealthy"
     return JSONResponse(content=checks)
 

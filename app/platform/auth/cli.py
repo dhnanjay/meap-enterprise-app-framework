@@ -10,7 +10,8 @@ from app.platform.audit import models as _audit_models  # noqa: F401
 from app.platform.auth import models as _auth_models  # noqa: F401
 from app.platform.auth.models import BootstrapState, Membership, User
 from app.platform.auth.service import AuthService, normalize_email
-from app.platform.database.base import Base, make_engine, make_session_factory
+from app.platform.database.base import make_engine, make_session_factory
+from app.platform.database.migrations import upgrade_database
 from app.settings import get_settings
 
 
@@ -38,9 +39,10 @@ def parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = parser().parse_args()
     settings = get_settings()
+    migration = upgrade_database(settings.database_url)
+    if migration.backup_path:
+        print(f"Database backup created: {migration.backup_path}")
     engine = make_engine(settings.database_url)
-    if settings.profile in {"local", "development", "test"}:
-        Base.metadata.create_all(engine)
     factory = make_session_factory(engine)
     with factory() as db:
         service = AuthService(db, settings)

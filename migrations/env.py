@@ -31,8 +31,9 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Override URL from MEAP settings
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+# Override URL from an in-process lifecycle command or MEAP settings.
+database_url = config.attributes.get("meap_database_url", get_settings().database_url)
+config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 target_metadata = Base.metadata
 

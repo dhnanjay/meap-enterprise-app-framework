@@ -19,13 +19,16 @@ source .venv/bin/activate
 # Install dependencies
 pip install -e ".[dev]"
 
+# Create or safely upgrade the configured database
+meap db upgrade
+
 # Create the first administrator (prints a 15-minute enrollment URL)
 python -m app.platform.auth.cli bootstrap-admin \
   --email admin@example.com \
   --display-name "MEAP Administrator" \
   --organization "Example Organization"
 
-# Run the app (local profile — SQLite, local TOTP, tables auto-created)
+# Run the app (local profile — SQLite and local TOTP)
 uvicorn app.main:app --reload --port 8000
 
 # Run tests
@@ -47,6 +50,8 @@ Read [`docs/DEVELOPER-CUSTOMIZATION-GUIDE.md`](docs/DEVELOPER-CUSTOMIZATION-GUID
 - Testing, debugging, and frequently encountered integration failures
 
 Read [`docs/ACCESS-CONTROL.md`](docs/ACCESS-CONTROL.md) for the generic role model, the administrator access matrix, per-user overrides, and the workspace data-ownership contract.
+
+Read [`docs/DATABASE-OPERATIONS.md`](docs/DATABASE-OPERATIONS.md) for revision status, automatic SQLite backups, safe upgrades, legacy local databases, rollback, health checks, and PostgreSQL deployment preparation.
 
 > **Authentication:** MEAP includes self-hosted, administrator-issued TOTP login with encrypted credentials, recovery codes, server-side sessions, CSRF protection, and fail-closed access. It sends no email and does not verify mailbox ownership. Read [`docs/AUTHENTICATION-OPERATIONS.md`](docs/AUTHENTICATION-OPERATIONS.md) before deployment.
 

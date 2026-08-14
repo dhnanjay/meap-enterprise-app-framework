@@ -222,6 +222,15 @@ class TestPlatformRoutes:
         assert r.status_code == 200
         assert "<ui5-" not in r.text
 
+    def test_health_reports_database_revision(self, client):
+        response = client.get("/developer/health")
+        assert response.status_code == 200
+        revision = response.json()["checks"]["database_revision"]
+        # Test databases intentionally use metadata.create_all rather than
+        # Alembic, so health must expose that state instead of hiding it.
+        assert revision["status"] == "upgrade_required"
+        assert revision["expected"]
+
     def test_static_assets_served(self, client):
         """Static CSS is served (Section 22)."""
         r = client.get("/static/css/meap.css")

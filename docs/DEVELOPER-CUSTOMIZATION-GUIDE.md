@@ -303,7 +303,7 @@ async def approve_vendor(
 
 ### 4.3 Database migration workflow
 
-Local/development/test profiles call `Base.metadata.create_all()` to make development startup convenient. That is not a substitute for migrations. Production uses Alembic.
+Alembic is the single schema authority for runnable local, development, and production databases. The application validates the revision during startup. Only isolated test databases use `Base.metadata.create_all()`.
 
 Every business table that contains user-visible or mutable workspace data must include `organization_id`. Repository constructors accept the logged-in organization and include it in every read, count, and mutation query. Do not perform a global lookup and filter after loading.
 
@@ -318,6 +318,8 @@ alembic revision --autogenerate -m "add vendor review"
 # Read the generated upgrade and downgrade functions before applying them.
 alembic upgrade head
 ```
+
+For normal operator use, prefer `meap db upgrade`; it creates a recoverable SQLite backup and safely recognizes supported legacy local schemas. The longer `python -m app.platform.database.cli upgrade` form remains available for source checkouts that have not installed the project command. Read [Database Operations](DATABASE-OPERATIONS.md).
 
 Never apply an unreviewed generated migration to shared or production data. Test destructive column changes, backfills, uniqueness constraints, and downgrades against a realistic copy of the schema.
 
