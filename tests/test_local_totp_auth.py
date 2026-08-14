@@ -188,6 +188,8 @@ def test_complete_enrollment_login_and_logout_flow(
     with TestClient(app) as client:
         page = client.get(f"/auth/enroll/{issued.token}")
         csrf = re.search(r'name="csrf_token" value="([^"]+)"', page.text).group(1)
+        # Opening the login page in another tab must not invalidate enrollment.
+        assert client.get("/auth/login").status_code == 200
         enrolled = client.post(
             f"/auth/enroll/{issued.token}",
             data={"csrf_token": csrf, "code": pyotp.TOTP(secret).now()},

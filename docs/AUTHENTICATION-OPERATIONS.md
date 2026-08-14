@@ -39,6 +39,8 @@ python -m app.platform.auth.cli bootstrap-admin \
 
 The command writes the bootstrap marker to the database immediately and prints a one-time enrollment URL. It cannot create a second initial administrator.
 
+The `--base-url` port must match the port used to start Uvicorn. For example, when Uvicorn uses `--port 8022`, pass `--base-url http://127.0.0.1:8022`.
+
 If the first link expires before enrollment is completed, reissue it from the host:
 
 ```bash

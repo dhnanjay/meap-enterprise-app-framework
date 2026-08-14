@@ -62,3 +62,17 @@ Add administrator-controlled credential re-enrollment and an access-review page,
 - Clarified that database reset invalidates all users, credentials, sessions, audit history, and business records, while source code, `.venv`, configuration, and artifact files remain separate.
 - Documented optional artifact-directory preservation and the non-destructive expired-bootstrap enrollment reissue command.
 - Explicitly excluded PostgreSQL from the file-based SQLite reset procedure.
+
+## 2026-08-13 — Authentication multi-tab CSRF correction
+
+### Problem reproduced
+
+Opening or refreshing the login page after opening an enrollment page replaced a shared pre-authentication CSRF cookie. Submitting the still-valid enrollment form then incorrectly reported that the form had expired.
+
+### Correction
+
+- Separated login and enrollment CSRF cookies.
+- Scoped the login cookie to `/auth/login`.
+- Scoped each enrollment cookie to its exact one-time enrollment URL.
+- Added browser-flow coverage that opens login between enrollment-page load and enrollment confirmation.
+- Kept the enrollment token, TOTP secret, and session security model unchanged.

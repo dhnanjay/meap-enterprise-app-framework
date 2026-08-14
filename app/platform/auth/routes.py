@@ -20,7 +20,8 @@ from app.platform.database.session import get_db
 from app.platform.templates.rendering import templates
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
-FORM_CSRF_COOKIE = "meap_auth_form_csrf"
+LOGIN_CSRF_COOKIE = "meap_login_form_csrf"
+ENROLLMENT_CSRF_COOKIE = "meap_enrollment_form_csrf"
 
 
 def _auth_page(request: Request, template_name: str, context: dict, status_code: int = 200) -> HTMLResponse:
@@ -38,20 +39,27 @@ def _auth_page(request: Request, template_name: str, context: dict, status_code:
     return response
 
 
-def _set_form_csrf(response: HTMLResponse, request: Request, token: str) -> None:
+def _set_form_csrf(
+    response: HTMLResponse,
+    request: Request,
+    token: str,
+    *,
+    cookie_name: str,
+    cookie_path: str,
+) -> None:
     response.set_cookie(
-        FORM_CSRF_COOKIE,
+        cookie_name,
         token,
         httponly=True,
         secure=request.app.state.settings.profile == "production",
         samesite="lax",
-        path="/auth",
+        path=cookie_path,
         max_age=900,
     )
 
 
-def _valid_form_csrf(request: Request, submitted: str) -> bool:
-    cookie = request.cookies.get(FORM_CSRF_COOKIE, "")
+def _valid_form_csrf(request: Request, submitted: str, *, cookie_name: str) -> bool:
+    cookie = request.cookies.get(cookie_name, "")
     return bool(cookie and submitted and hmac.compare_digest(cookie, submitted))
 
 
@@ -74,7 +82,13 @@ def login_page(request: Request, next: str = "/"):
         "auth/login.html",
         {"csrf_token": csrf, "next_path": _safe_next(next), "error": None},
     )
-    _set_form_csrf(response, request, csrf)
+    _set_form_csrf(
+        response,
+        request,
+        csrf,
+        cookie_name=LOGIN_CSRF_COOKIE,
+        cookie_path="/auth/login",
+    )
     response.headers["Cache-Control"] = "no-store"
     return response
 
@@ -88,7 +102,7 @@ def login(
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    if not _valid_form_csrf(request, csrf_token):
+    if not _valid_form_csrf(request, csrf_token, cookie_name=LOGIN_CSRF_COOKIE):
         return _auth_page(request, "auth/login.html", {
             "csrf_token": csrf_token,
             "next_path": _safe_next(next),
@@ -120,7 +134,7 @@ def login(
         path="/",
         max_age=settings.session_absolute_lifetime_hours * 3600,
     )
-    response.delete_cookie(FORM_CSRF_COOKIE, path="/auth")
+    response.delete_cookie(LOGIN_CSRF_COOKIE, path="/auth/login")
     return response
 
 
@@ -154,7 +168,14 @@ def enrollment_page(request: Request, token: str, db: Session = Depends(get_db))
         "membership": enrollment.membership,
         "error": None,
     })
-    _set_form_csrf(response, request, csrf)
+    enrollment_path = f"/auth/enroll/{token}"
+    _set_form_csrf(
+        response,
+        request,
+        csrf,
+        cookie_name=ENROLLMENT_CSRF_COOKIE,
+        cookie_path=enrollment_path,
+    )
     response.headers.update({"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
     return response
 
@@ -171,7 +192,11 @@ def confirm_enrollment(
     enrollment = service.get_enrollment(token)
     if enrollment is None:
         return _auth_page(request, "auth/enrollment_invalid.html", {}, 410)
-    if not _valid_form_csrf(request, csrf_token):
+    if not _valid_form_csrf(
+        request,
+        csrf_token,
+        cookie_name=ENROLLMENT_CSRF_COOKIE,
+    ):
         error = "The enrollment form expired. Refresh and try again."
     else:
         try:
@@ -181,7 +206,10 @@ def confirm_enrollment(
                 "recovery_codes": recovery_codes,
             })
             response.headers.update({"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
-            response.delete_cookie(FORM_CSRF_COOKIE, path="/auth")
+            response.delete_cookie(
+                ENROLLMENT_CSRF_COOKIE,
+                path=f"/auth/enroll/{token}",
+            )
             return response
         except ValueError as exc:
             error = str(exc)
