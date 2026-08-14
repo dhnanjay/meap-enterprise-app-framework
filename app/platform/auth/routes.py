@@ -36,12 +36,7 @@ def _access_admin_context(
         .order_by(Membership.created_at)
     ).all()
     registry = request.app.state.registry
-    navigation_items = [
-        item
-        for group in registry.get_navigation()
-        for item in group["items"]
-        if item.get("required_permission")
-    ]
+    navigation_items = registry.get_configurable_navigation()
     service = AuthService(db, request.app.state.settings)
     access = {
         membership.membership_id: service.permissions_for_membership(

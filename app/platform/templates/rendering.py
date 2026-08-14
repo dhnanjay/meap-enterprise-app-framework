@@ -130,13 +130,19 @@ def render_page(
         # HTMX: return fragment only, add out-of-band swap for nav if needed
         response = templates.TemplateResponse(request, template_name, ctx)
         response.headers["HX-Push-Url"] = str(request.url)
+        if settings and settings.auth_enabled:
+            response.headers["Cache-Control"] = "no-store"
         return response
 
     # Full page: wrap fragment in the shell
     shell = full_template or "shell_page.html"
     ctx["content_template"] = template_name
     ctx["content_target"] = target
-    return templates.TemplateResponse(request, shell, ctx)
+    response = templates.TemplateResponse(request, shell, ctx)
+    if settings and settings.auth_enabled:
+        # Access changes must not resurrect stale navigation from browser cache.
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 def render_fragment(

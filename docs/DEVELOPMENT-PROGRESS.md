@@ -135,3 +135,14 @@ Added the first administrator-managed access layer for a generic, data-heavy app
 - Users and Developer are protected workspace-administration capabilities, not user-configurable business links.
 - PostgreSQL migration validation remains the next database portability check.
 - No code or repository state was published during this increment.
+
+## 2026-08-13 — Access navigation synchronization correction
+
+- Confirmed the current per-user allow records were correct; link navigation failed because the local `meap.db` still had the pre-workspace business schema.
+- Added an explicit `get_configurable_navigation()` registry contract consumed by the Users access panel.
+- Added regression coverage proving that removing a module removes its access-panel column and registering a new navigation link adds its column automatically.
+- Added authenticated-page `Cache-Control: no-store` headers so browser history cannot resurrect navigation rendered before an access change.
+- Kept the dashboard as fixed workspace chrome and Users/Developer as administrator-only platform capabilities.
+- Backed up the existing local database as `meap.before-workspace-access-20260813.db`, stamped its previously empty Alembic baseline, and applied revision `3836580891fe`.
+- Verified both users, all four per-user access overrides, and all four reconciliation records survived migration.
+- Verified the live authenticated routes `/`, `/bank-recon`, `/je-review`, and `/auth/admin/users` all return HTTP 200 after migration.

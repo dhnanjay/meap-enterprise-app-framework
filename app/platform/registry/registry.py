@@ -158,6 +158,19 @@ class ModuleRegistry:
             result.append({"group": group_name, "items": items})
         return result
 
+    def get_configurable_navigation(self) -> list[dict[str, Any]]:
+        """Return the live registry links that can be assigned per membership.
+
+        The access administration UI consumes this method directly. It must
+        never maintain a second, hard-coded list of applications.
+        """
+        return [
+            item
+            for group in self.get_navigation()
+            for item in group["items"]
+            if item.get("required_permission")
+        ]
+
     # ------------------------------------------------------------------
     # Diagnostics (Section 48)
     # ------------------------------------------------------------------

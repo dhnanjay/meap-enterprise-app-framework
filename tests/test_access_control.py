@@ -56,6 +56,55 @@ def test_registry_hides_navigation_without_its_required_permission():
     assert visible_labels == {"Bank Reconciliation"}
 
 
+def test_access_panel_links_come_only_from_live_module_registry():
+    from app.modules.bank_reconciliation.module import MODULE as bank_module
+    from app.modules.journal_entry_review.module import MODULE as journal_module
+
+    both = build_registry([bank_module, journal_module])
+    assert [item["label"] for item in both.get_configurable_navigation()] == [
+        "Bank Reconciliation",
+        "JE Review",
+    ]
+
+    without_journal = build_registry([bank_module])
+    assert [
+        item["label"] for item in without_journal.get_configurable_navigation()
+    ] == ["Bank Reconciliation"]
+
+
+def test_new_registered_navigation_link_automatically_enters_access_panel():
+    from fastapi import APIRouter
+
+    from app.platform.registry.definitions import ModuleDefinition, NavigationDefinition
+
+    permission = "data_operations.queue.view"
+    module = ModuleDefinition(
+        id="data_operations",
+        name="Data Operations",
+        route_prefix="/data-operations",
+        router=APIRouter(),
+        permissions=(permission,),
+        navigation=NavigationDefinition(
+            label="Data Operations",
+            group="Operations",
+            required_permission=permission,
+        ),
+    )
+
+    registry = build_registry([module])
+    assert registry.get_configurable_navigation() == [
+        {
+            "module_id": "data_operations",
+            "label": "Data Operations",
+            "group": "Operations",
+            "order": 100,
+            "icon": None,
+            "href": "/data-operations",
+            "required_permission": permission,
+        }
+    ]
+
+
 def test_membership_override_can_deny_role_permission(db_session):
     organization = Organization(name="Example Workspace", slug="example-workspace")
     user = User(
