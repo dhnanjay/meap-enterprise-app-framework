@@ -25,7 +25,7 @@ def require_permission(permission: str):
     """
 
     def _check(request: Request, user: UserContext = Depends(get_current_user)) -> UserContext:
-        settings = get_settings()
+        settings = getattr(request.app.state, "settings", get_settings())
 
         # When auth is disabled (local dev), allow all registered permissions
         if not settings.auth_enabled:

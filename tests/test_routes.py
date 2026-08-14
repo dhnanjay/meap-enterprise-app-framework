@@ -203,7 +203,7 @@ class TestPlatformRoutes:
     def test_dashboard(self, client):
         r = client.get("/")
         assert r.status_code == 200
-        assert b"MEAP" in r.content
+        assert client.app.state.settings.app_name.encode() in r.content
         assert b'hx-get="/bank-recon"' in r.content
         assert b"htmx-2.0.10.min.js" in r.content
 

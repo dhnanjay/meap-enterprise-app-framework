@@ -1,0 +1,15 @@
+{% extends "auth/base.html" %}
+{% block auth_content %}
+<section class="auth-panel auth-stack" aria-labelledby="enroll-title">
+  <div><div class="meap-overline">One-time enrollment</div><h1 id="enroll-title">Set up your authenticator</h1><p>{{ membership.user.display_name }} · {{ membership.user.email }}</p></div>
+  {% if error %}<div class="auth-error" role="alert">{{ error }}</div>{% endif %}
+  <ol><li>Scan this QR code with Google Authenticator, Microsoft Authenticator, 1Password, Aegis, or another TOTP app.</li><li>Enter the current six-digit code to confirm setup.</li></ol>
+  <img class="auth-qr" src="{{ qr_data_uri }}" alt="TOTP enrollment QR code">
+  <form class="auth-stack" action="/auth/enroll/{{ token }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label class="auth-field">Six-digit code<input type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" required></label>
+    <button class="meap-btn meap-btn--primary" type="submit">Confirm enrollment</button>
+  </form>
+  <p class="meap-text-muted">This page is not connected to your mailbox. Your administrator has asserted the account identity.</p>
+</section>
+{% endblock %}

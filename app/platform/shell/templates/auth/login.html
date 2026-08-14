@@ -1,0 +1,15 @@
+{% extends "auth/base.html" %}
+{% block auth_content %}
+<section class="auth-panel auth-stack" aria-labelledby="login-title">
+  <div><div class="meap-overline">Secure workspace</div><h1 id="login-title">Sign in to {{ settings.app_name }}</h1><p>Use the email address assigned by your administrator and the current code from your authenticator.</p></div>
+  {% if error %}<div class="auth-error" role="alert">{{ error }}</div>{% endif %}
+  <form class="auth-stack" action="/auth/login" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="next" value="{{ next_path }}">
+    <label class="auth-field">Email address<input type="email" name="email" autocomplete="username" required autofocus></label>
+    <label class="auth-field">Authentication or recovery code<input type="text" name="code" autocomplete="one-time-code" required></label>
+    <button class="meap-btn meap-btn--primary" type="submit">Sign in</button>
+  </form>
+  <p class="meap-text-muted">Accounts are created and asserted by an application administrator. No mailbox connection is required.</p>
+</section>
+{% endblock %}

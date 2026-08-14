@@ -19,7 +19,7 @@
   <link id="favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏢</text></svg>">
 </head>
 
-<body class="meap-shell" data-density="compact">
+<body class="meap-shell" data-density="compact"{% if csrf_token %} hx-headers='{"X-CSRF-Token":"{{ csrf_token }}"}'{% endif %}>
   <a class="meap-skip-link" href="#main-content">Skip to main content</a>
   {# ── Top Bar (Section 11) ─────────────────────────────────────────────── #}
   <header class="meap-topbar">
@@ -31,7 +31,7 @@
         </svg>
       </button>
       <a href="/" class="meap-brand">
-        <span class="meap-brand-mark" aria-hidden="true">M</span>
+        <span class="meap-brand-mark" aria-hidden="true">DJ</span>
         <span class="meap-brand-lockup">
           <span class="meap-brand-text">{{ settings.app_name if settings else 'MEAP' }}</span>
           <span class="meap-brand-caption">Enterprise workspace</span>
@@ -55,6 +55,16 @@
     </div>
 
     <div class="meap-topbar-right">
+      {% if current_user %}
+      {% if current_user.role == 'admin' %}
+      <a href="/auth/admin/users" class="meap-btn meap-btn--quiet">Users</a>
+      {% endif %}
+      <span class="meap-environment">{{ current_user.display_name }}</span>
+      <form action="/auth/logout" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="meap-btn meap-btn--quiet" type="submit">Sign out</button>
+      </form>
+      {% endif %}
       <button id="meap-density-toggle" class="meap-btn meap-btn--quiet meap-density-toggle" type="button"
               aria-label="Switch to comfortable density" title="Table density: compact">
         Compact

@@ -19,7 +19,13 @@ source .venv/bin/activate
 # Install dependencies
 pip install -e ".[dev]"
 
-# Run the app (local profile — SQLite, auth disabled, tables auto-created)
+# Create the first administrator (prints a 15-minute enrollment URL)
+python -m app.platform.auth.cli bootstrap-admin \
+  --email admin@example.com \
+  --display-name "MEAP Administrator" \
+  --organization "Example Organization"
+
+# Run the app (local profile — SQLite, local TOTP, tables auto-created)
 uvicorn app.main:app --reload --port 8000
 
 # Run tests
@@ -35,12 +41,12 @@ Open `http://localhost:8000` in your browser.
 Read [`docs/DEVELOPER-CUSTOMIZATION-GUIDE.md`](docs/DEVELOPER-CUSTOMIZATION-GUIDE.md) before extending the starter. It documents the repository's actual extension points for:
 
 - Configuring, ordering, hiding, and disabling navigation entries
-- Adding configurable **Sign in with Google** and **Sign in with Microsoft** options
+- Operating the built-in administrator-issued TOTP login and its future OIDC boundary
 - Adding a page or complete module with routes, services, repositories, templates, permissions, and database models
 - Generating and reviewing Alembic migrations
 - Testing, debugging, and frequently encountered integration failures
 
-> **Authentication readiness:** `MEAP_AUTH_ENABLED` is currently an integration switch, not a complete login implementation. The starter does not yet include OIDC routes, verified sessions, provider configuration, or fail-closed missing-session behavior. Do not enable authentication in a deployed environment until the guide's implementation and go-live checklist are complete.
+> **Authentication:** MEAP includes self-hosted, administrator-issued TOTP login with encrypted credentials, recovery codes, server-side sessions, CSRF protection, and fail-closed access. It sends no email and does not verify mailbox ownership. Read [`docs/AUTHENTICATION-OPERATIONS.md`](docs/AUTHENTICATION-OPERATIONS.md) before deployment.
 
 ---
 
@@ -174,7 +180,8 @@ meap/
 │   │   ├── database/              # SQLAlchemy base + session (§43)
 │   │   ├── jobs/                  # Job model + service (§32-34)
 │   │   ├── artifacts/             # Artifact model + storage (§35-38)
-│   │   ├── audit/                 # Audit models
+│   │   ├── audit/                 # Append-only audit events
+│   │   ├── notebooks/             # Registry + policy only; no execution
 │   │   ├── diagnostics/           # /developer area (§48)
 │   │   ├── errors/                # Error taxonomy + handlers (§44,45)
 │   │   ├── query_state/           # URL-state helpers (§URL-State)
@@ -385,14 +392,24 @@ Settings are loaded from environment variables with typed defaults (§55):
 | `MEAP_APP_NAME` | `MEAP` | Product name |
 | `MEAP_DEBUG` | `false` | FastAPI debug mode |
 | `MEAP_SECRET_KEY` | local-only development value | Application signing secret; replace outside local development |
-| `MEAP_AUTH_ENABLED` | `false` | Authentication integration switch; not production-ready by itself |
+| `MEAP_AUTH_ENABLED` | `true` | Enable self-hosted local TOTP authentication; set `false` only for trusted local development |
+| `MEAP_AUTH_METHOD` | `local_totp` | Active authentication adapter |
+| `MEAP_ADMISSION_MODE` | `invite_only` | Administrator-issued enrollment; `disabled` stops new enrollment |
+| `MEAP_ALLOWED_EMAIL_DOMAINS` | empty | Optional comma-separated restriction on administrator-asserted addresses |
+| `MEAP_SESSION_HMAC_KEY` | local-only value | Independent server-side session token HMAC key |
+| `MEAP_CSRF_KEY` | local-only value | Independent signing key for short-lived pre-authentication form tokens |
+| `MEAP_TOKEN_HMAC_KEY` | local-only value | Independent enrollment/recovery token HMAC key |
+| `MEAP_CREDENTIAL_ENCRYPTION_KEY` | local-only value | Base64-encoded 32-byte AES-GCM key for TOTP seeds |
+| `MEAP_CREDENTIAL_ENCRYPTION_KEYS` | empty | Production JSON keyring mapping key IDs to base64 AES-GCM keys |
+| `MEAP_CREDENTIAL_ENCRYPTION_KEY_ID` | `local-v1` | Version identifier used for credential-key rotation |
 | `MEAP_DATABASE_URL` | `sqlite:///./meap.db` | Database URL |
 | `MEAP_DEVELOPER_AREA_ENABLED` | `true` | Enable `/developer` diagnostics |
 | `MEAP_REDIS_URL` | empty | Redis/RQ connection; empty uses local background execution |
 | `MEAP_ARTIFACT_STORAGE_BACKEND` | `local` | Artifact storage backend |
 | `MEAP_ARTIFACT_STORAGE_PATH` | `./artifacts` | Local artifact directory |
+| `MEAP_NOTEBOOKS_ENABLED` | `false` | Notebook metadata capability; does not enable execution |
 
-See the [developer customization guide](docs/DEVELOPER-CUSTOMIZATION-GUIDE.md) for `.env` examples and the proposed configurable Google/Microsoft OIDC settings.
+See the [authentication operations guide](docs/AUTHENTICATION-OPERATIONS.md) for bootstrap and production-key configuration. External Google/Microsoft/Keycloak OIDC remains a future adapter and is not required for local TOTP.
 
 ---
 
@@ -465,6 +482,23 @@ artifact = artifact_service.create_artifact(
 ```
 
 Artifact lineage tracks provenance: original → normalized → results → report.
+
+---
+
+## Notebook foundation
+
+MEAP includes a disabled-by-default notebook registry and security vocabulary.
+It does **not** currently launch, proxy, embed, or execute Marimo or Jupyter.
+
+The governing rule is:
+
+> Notebook edit permission is equivalent to local shell access on the MEAP server.
+
+Read [`docs/NOTEBOOK-SECURITY-MODEL.md`](docs/NOTEBOOK-SECURITY-MODEL.md) before
+adding any notebook link, application, dependency, route, or runtime behavior.
+The accepted roadmap stops at registry metadata, external links, and a future
+named use case for read-only `marimo run` applications. Editable workspaces and
+JupyterHub are deferred.
 
 ---
 
