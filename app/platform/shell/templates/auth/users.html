@@ -1,7 +1,7 @@
 {% extends "auth/base.html" %}
 {% block auth_content %}
 <section class="auth-panel auth-panel--wide auth-stack" aria-labelledby="users-title">
-  <div class="auth-actions"><div><div class="meap-overline">Administration</div><h1 id="users-title">Users and memberships</h1></div><a class="meap-btn meap-btn--quiet" href="/">Back to workspace</a></div>
+  <div class="auth-actions"><div><div class="meap-overline">Administration</div><h1 id="users-title">Users and memberships</h1></div><div class="auth-actions"><a class="meap-btn" href="/auth/admin/roles">Roles</a><a class="meap-btn meap-btn--quiet" href="/">Back to workspace</a></div></div>
   {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
   {% if message %}<div class="auth-success">{{ message }}</div>{% endif %}
   {% if invite_url %}<div class="auth-notice"><strong>Enrollment link—copy it now:</strong><br>{{ invite_url }}</div>{% endif %}
@@ -10,7 +10,7 @@
     <h2>Invite a user</h2>
     <label class="auth-field">Email address<input type="email" name="email" required></label>
     <label class="auth-field">Display name<input type="text" name="display_name" required></label>
-    <label class="auth-field">Role<select name="role"><option value="operator">Operator</option><option value="analyst">Analyst</option><option value="auditor">Auditor</option><option value="viewer">Viewer</option><option value="workspace_admin">Workspace administrator</option></select></label>
+    <label class="auth-field">Role<select name="role">{% for key, definition in role_definitions.items() %}<option value="{{ key }}"{% if key == 'operator' %} selected{% endif %}>{{ definition.display_name }}</option>{% endfor %}</select></label>
     {% if requires_reauthentication %}<label class="auth-field">Your current authenticator or backup sign-in code<input type="text" name="admin_code" inputmode="numeric" autocomplete="one-time-code" required><span class="meap-text-muted">Required once; sensitive administration remains verified for {{ verification_minutes }} minutes.</span></label>{% else %}<div class="auth-success">Administrator identity recently verified. Sensitive changes remain available without another code for {{ verification_minutes }} minutes.</div>{% endif %}
     <label class="auth-confirm"><input type="checkbox" name="confirmation" value="confirmed" required><span>I confirm that I am asserting this user's identity and assigning workspace access.</span></label>
     <button class="meap-btn meap-btn--primary" type="submit">Create enrollment link</button>
@@ -21,7 +21,7 @@
   <div>
     <div class="meap-overline">Navigation access</div>
     <h2>Application visibility and access</h2>
-    <p class="meap-text-muted">Each switch controls both navigation visibility and direct access to that application. Action-level permissions can be refined later.</p>
+    <p class="meap-text-muted">Each switch controls both navigation visibility and direct access to that application. Use the separate Roles panel to configure create, execute, resolve, approve, and other registered actions.</p>
   </div>
   <div class="meap-table-wrapper"><table class="meap-table"><thead><tr><th>User</th>{% for item in navigation_items %}<th>{{ item.label }}</th>{% endfor %}</tr></thead><tbody>
     {% for membership in memberships %}

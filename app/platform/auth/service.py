@@ -56,6 +56,12 @@ def safe_slug(value: str) -> str:
     return slug or "organization"
 
 
+def safe_role_key(value: str) -> str:
+    """Create a stable, storage-safe key for an administrator-defined role."""
+    key = re.sub(r"[^a-z0-9]+", "_", value.strip().casefold()).strip("_")
+    return (key or "custom_role")[:40]
+
+
 @dataclass(frozen=True)
 class EnrollmentResult:
     token: str
@@ -155,6 +161,156 @@ class AuthService:
             existing[role_key] = role
         self.db.flush()
         return existing
+
+    def list_access_roles(self, organization_id: str) -> tuple[AccessRole, ...]:
+        """Return the live workspace role catalog, including custom roles."""
+        self.ensure_default_roles(organization_id)
+        roles = self.db.scalars(
+            select(AccessRole)
+            .where(AccessRole.organization_id == organization_id)
+            .order_by(AccessRole.is_system.desc(), AccessRole.display_name)
+        ).all()
+        return tuple(roles)
+
+    def get_access_role(
+        self, organization_id: str, role_id: str
+    ) -> AccessRole | None:
+        return self.db.scalar(
+            select(AccessRole).where(
+                AccessRole.role_id == role_id,
+                AccessRole.organization_id == organization_id,
+            )
+        )
+
+    def get_access_role_by_key(
+        self, organization_id: str, role_key: str
+    ) -> AccessRole | None:
+        self.ensure_default_roles(organization_id)
+        return self.db.scalar(
+            select(AccessRole).where(
+                AccessRole.organization_id == organization_id,
+                AccessRole.role_key == role_key,
+            )
+        )
+
+    def create_access_role(
+        self,
+        *,
+        organization_id: str,
+        display_name: str,
+        description: str,
+        actor_user_id: str,
+    ) -> AccessRole:
+        """Create a deny-by-default custom role inside one workspace."""
+        name = display_name.strip()
+        detail = description.strip()
+        if len(name) < 2 or len(name) > 120:
+            raise ValueError("Role name must contain 2 to 120 characters")
+        if len(detail) > 500:
+            raise ValueError("Role description must contain at most 500 characters")
+        role_key = safe_role_key(name)
+        if role_key in DEFAULT_ROLE_BUNDLES:
+            raise ValueError("That role name is reserved")
+        if self.get_access_role_by_key(organization_id, role_key) is not None:
+            raise ValueError("A workspace role with that name already exists")
+        role = AccessRole(
+            organization_id=organization_id,
+            role_key=role_key,
+            display_name=name,
+            description=detail,
+            is_system=False,
+        )
+        self.db.add(role)
+        self.db.flush()
+        AuditService(self.db).record(
+            event_type="auth.role.created",
+            organization_id=organization_id,
+            actor_user_id=actor_user_id,
+            entity_type="access_role",
+            entity_id=role.role_id,
+            event_data={"role_key": role.role_key, "permission_count": 0},
+            commit=False,
+        )
+        self.db.commit()
+        self.db.refresh(role)
+        return role
+
+    def update_access_role(
+        self,
+        *,
+        role: AccessRole,
+        organization_id: str,
+        display_name: str,
+        description: str,
+        permissions: frozenset[str],
+        registered_permissions: frozenset[str],
+        actor_user_id: str,
+    ) -> int:
+        """Replace a role's grants and revoke affected sessions atomically."""
+        if role.organization_id != organization_id:
+            raise ValueError("Workspace role not found")
+        if role.role_key == "workspace_admin":
+            raise ValueError("The workspace administrator role is fixed and cannot be reduced")
+        unknown = permissions - registered_permissions
+        if unknown:
+            raise ValueError("One or more selected permissions are not registered")
+        name = display_name.strip()
+        detail = description.strip()
+        if len(name) < 2 or len(name) > 120:
+            raise ValueError("Role name must contain 2 to 120 characters")
+        if len(detail) > 500:
+            raise ValueError("Role description must contain at most 500 characters")
+
+        previous_patterns = frozenset(
+            grant.permission_pattern for grant in role.permission_grants
+        )
+        previous_display_name = role.display_name
+        previous_description = role.description
+        previous_permissions = expand_permission_patterns(
+            previous_patterns, registered_permissions
+        )
+        self.db.execute(
+            delete(RolePermission).where(RolePermission.role_id == role.role_id)
+        )
+        for permission in sorted(permissions):
+            self.db.add(
+                RolePermission(role_id=role.role_id, permission_pattern=permission)
+            )
+        role.display_name = name
+        role.description = detail
+
+        membership_ids = select(MembershipRole.membership_id).where(
+            MembershipRole.role_id == role.role_id
+        )
+        revoked = self.db.execute(
+            update(AuthSession)
+            .where(
+                AuthSession.membership_id.in_(membership_ids),
+                AuthSession.revoked_at.is_(None),
+            )
+            .values(revoked_at=now_utc())
+        )
+        revoked_count = int(revoked.rowcount or 0)
+        AuditService(self.db).record(
+            event_type="auth.role.permissions_changed",
+            organization_id=role.organization_id,
+            actor_user_id=actor_user_id,
+            entity_type="access_role",
+            entity_id=role.role_id,
+            event_data={
+                "role_key": role.role_key,
+                "previous_display_name": previous_display_name,
+                "new_display_name": name,
+                "description_changed": previous_description != detail,
+                "added_permissions": sorted(permissions - previous_permissions),
+                "removed_permissions": sorted(previous_permissions - permissions),
+                "revoked_sessions": revoked_count,
+            },
+            commit=False,
+        )
+        self.db.commit()
+        self.db.expire(role, ["permission_grants"])
+        return revoked_count
 
     def assign_role(
         self,
@@ -362,7 +518,7 @@ class AuthService:
             role = "workspace_admin"
         elif role == "member":
             role = "operator"
-        if role not in DEFAULT_ROLE_BUNDLES:
+        if self.get_access_role_by_key(organization_id, role) is None:
             raise ValueError("Unknown workspace role")
         user = self.db.scalar(select(User).where(User.normalized_email == normalized))
         if user is None:

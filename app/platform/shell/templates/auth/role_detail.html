@@ -1,0 +1,36 @@
+{% extends "auth/base.html" %}
+{% block auth_content %}
+<section class="auth-panel auth-panel--wide auth-stack" aria-labelledby="role-title">
+  <div class="auth-actions">
+    <div><div class="meap-overline">Role configuration</div><h1 id="role-title">{{ role.display_name }}</h1><p class="meap-mono meap-muted">{{ role.role_key }}</p></div>
+    <a class="meap-btn meap-btn--quiet" href="/auth/admin/roles">All roles</a>
+  </div>
+  {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
+  {% if message %}<div class="auth-success">{{ message }}{% if revoked_sessions is not none %} {{ revoked_sessions }} active session(s) were revoked so stale permissions cannot remain in use.{% endif %}</div>{% endif %}
+  {% if is_fixed %}<div class="auth-notice"><strong>Fixed safety role</strong><br>Workspace administrators always retain every registered module permission. This role cannot be reduced or customized from the application.</div>{% else %}<div class="auth-warning"><strong>Access effect</strong><br>Saving replaces this role's baseline with the checked registered permissions. Users keep any explicit per-user allow or deny overrides. Active sessions assigned to this role are revoked.</div>{% endif %}
+  <form class="auth-stack" action="/auth/admin/roles/{{ role.role_id }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ current_user.csrf_token }}">
+    <div class="auth-grid">
+      <label class="auth-field">Display name<input type="text" name="display_name" maxlength="120" value="{{ role.display_name }}" required {% if is_fixed %}disabled{% endif %}></label>
+      <label class="auth-field">Description<input type="text" name="description" maxlength="500" value="{{ role.description }}" {% if is_fixed %}disabled{% endif %}></label>
+    </div>
+    <div class="auth-permission-summary"><strong>{{ selected_permissions|length }} of {{ registered_permission_count }}</strong> registered permissions selected</div>
+    {% for group in permission_groups %}
+    <section class="auth-permission-group" aria-labelledby="permission-group-{{ group.module_id }}">
+      <div class="auth-permission-heading"><h2 id="permission-group-{{ group.module_id }}">{{ group.module_name }}</h2><span class="meap-chip">{{ group.permissions|length }} actions</span></div>
+      <div class="meap-table-wrapper"><table class="meap-table"><thead><tr><th class="meap-col--fit">Grant</th><th>Resource</th><th>Action</th><th>Permission identifier</th></tr></thead><tbody>
+        {% for permission in group.permissions %}<tr>
+          <td><input type="checkbox" name="permissions" value="{{ permission.name }}" {% if permission.name in selected_permissions %}checked{% endif %} {% if is_fixed %}disabled{% endif %} aria-label="Grant {{ permission.name }}"></td>
+          <td>{{ permission.resource }}</td><td><span class="meap-chip">{{ permission.action }}</span></td><td class="meap-mono">{{ permission.name }}</td>
+        </tr>{% endfor %}
+      </tbody></table></div>
+    </section>
+    {% endfor %}
+    {% if not is_fixed %}
+      {% if requires_reauthentication %}<label class="auth-field">Your current authenticator or backup sign-in code<input type="text" name="admin_code" inputmode="numeric" autocomplete="one-time-code" required><span class="meap-text-muted">Required once for a {{ verification_minutes }}-minute sensitive-administration window.</span></label>{% else %}<div class="auth-success">Administrator identity recently verified. No additional code is needed for this change.</div>{% endif %}
+      <label class="auth-confirm"><input type="checkbox" name="confirmation" value="confirmed" required><span>I understand that this changes action access for every member assigned to this role.</span></label>
+      <div class="auth-actions"><span class="meap-text-muted">Changes are audited and take effect on the user's next sign-in.</span><button class="meap-btn meap-btn--primary" type="submit">Save role permissions</button></div>
+    {% endif %}
+  </form>
+</section>
+{% endblock %}

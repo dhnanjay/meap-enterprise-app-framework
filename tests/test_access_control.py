@@ -146,6 +146,95 @@ def test_membership_override_can_deny_role_permission(db_session):
     assert "bank_reconciliation.reconciliation.view" not in permissions
 
 
+def test_custom_role_uses_registered_exact_permissions_and_workspace_scope(
+    db_session,
+):
+    organization = Organization(name="Primary Workspace", slug="primary-workspace")
+    other = Organization(name="Other Workspace", slug="other-workspace")
+    user = User(
+        email="steward@example.com",
+        normalized_email="steward@example.com",
+        display_name="Data Steward",
+    )
+    db_session.add_all([organization, other, user])
+    db_session.flush()
+    membership = Membership(
+        organization_id=organization.organization_id,
+        user_id=user.user_id,
+        role="viewer",
+        status="active",
+    )
+    db_session.add(membership)
+    db_session.flush()
+    service = AuthService(db_session, get_settings())
+
+    role = service.create_access_role(
+        organization_id=organization.organization_id,
+        display_name="Data Steward",
+        description="Maintains operational data without execution rights.",
+        actor_user_id=user.user_id,
+    )
+    service.update_access_role(
+        role=role,
+        organization_id=organization.organization_id,
+        display_name=role.display_name,
+        description=role.description,
+        permissions=frozenset(
+            {
+                "bank_reconciliation.reconciliation.view",
+                "journal_entry_review.review.view",
+            }
+        ),
+        registered_permissions=REGISTERED_PERMISSIONS,
+        actor_user_id=user.user_id,
+    )
+    service.assign_role(membership, role.role_key, assigned_by_user_id=user.user_id)
+    db_session.commit()
+
+    permissions, roles = service.permissions_for_membership(
+        membership.membership_id, REGISTERED_PERMISSIONS
+    )
+    assert roles == (role.role_key,)
+    assert permissions == frozenset(
+        {
+            "bank_reconciliation.reconciliation.view",
+            "journal_entry_review.review.view",
+        }
+    )
+    assert service.get_access_role(other.organization_id, role.role_id) is None
+    with pytest.raises(ValueError, match="not found"):
+        service.update_access_role(
+            role=role,
+            organization_id=other.organization_id,
+            display_name=role.display_name,
+            description=role.description,
+            permissions=frozenset(),
+            registered_permissions=REGISTERED_PERMISSIONS,
+            actor_user_id=user.user_id,
+        )
+
+
+def test_workspace_administrator_role_cannot_be_reduced(db_session):
+    organization = Organization(name="Protected Workspace", slug="protected-workspace")
+    db_session.add(organization)
+    db_session.flush()
+    service = AuthService(db_session, get_settings())
+    administrator_role = service.ensure_default_roles(organization.organization_id)[
+        "workspace_admin"
+    ]
+
+    with pytest.raises(ValueError, match="fixed"):
+        service.update_access_role(
+            role=administrator_role,
+            organization_id=organization.organization_id,
+            display_name=administrator_role.display_name,
+            description=administrator_role.description,
+            permissions=frozenset(),
+            registered_permissions=REGISTERED_PERMISSIONS,
+            actor_user_id="administrator",
+        )
+
+
 def test_bank_reconciliation_records_are_workspace_scoped(db_session):
     workspace_a = BankReconciliationService(db_session, "workspace-a")
     workspace_b = BankReconciliationService(db_session, "workspace-b")

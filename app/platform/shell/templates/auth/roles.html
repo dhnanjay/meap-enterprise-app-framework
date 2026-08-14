@@ -1,0 +1,28 @@
+{% extends "auth/base.html" %}
+{% block auth_content %}
+<section class="auth-panel auth-panel--wide auth-stack" aria-labelledby="roles-title">
+  <div class="auth-actions">
+    <div><div class="meap-overline">Administration</div><h1 id="roles-title">Workspace roles</h1><p class="meap-text-muted">Reusable permission bundles for data-heavy operational work.</p></div>
+    <div class="auth-actions"><a class="meap-btn" href="/auth/admin/users">Users</a><a class="meap-btn meap-btn--quiet" href="/">Back to workspace</a></div>
+  </div>
+  {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
+  <div class="auth-notice"><strong>How access resolves</strong><br>A user's role provides the baseline. The Users application-access matrix can then explicitly allow or deny an individual application. Only permissions registered by active modules can be granted.</div>
+  <div class="meap-table-wrapper"><table class="meap-table"><thead><tr><th>Role</th><th>Type</th><th class="meap-col--num">Permissions</th><th class="meap-col--num">Members</th><th class="meap-col--fit">Action</th></tr></thead><tbody>
+    {% for role in roles %}<tr>
+      <td><strong>{{ role.display_name }}</strong><div class="meap-text-muted">{{ role.description or 'No description' }}</div><div class="meap-mono meap-muted">{{ role.role_key }}</div></td>
+      <td>{% if role.role_key == 'workspace_admin' %}<span class="meap-badge meap-badge--success">Fixed administrator</span>{% elif role.is_system %}<span class="meap-chip">Built-in</span>{% else %}<span class="meap-chip">Custom</span>{% endif %}</td>
+      <td class="meap-col--num">{{ role_permission_counts[role.role_id] }} / {{ registered_permission_count }}</td>
+      <td class="meap-col--num">{{ role_member_counts.get(role.role_id, 0) }}</td>
+      <td><a class="meap-btn meap-btn--quiet" href="/auth/admin/roles/{{ role.role_id }}">{{ 'Inspect' if role.role_key == 'workspace_admin' else 'Configure' }}</a></td>
+    </tr>{% endfor %}
+  </tbody></table></div>
+  <section class="auth-section auth-stack" aria-labelledby="create-role-title">
+    <div><h2 id="create-role-title">Create a custom role</h2><p class="meap-text-muted">New roles start with no permissions. Configure the registered actions on the next screen before assigning the role to users.</p></div>
+    <form class="auth-stack" action="/auth/admin/roles" method="post">
+      <input type="hidden" name="csrf_token" value="{{ current_user.csrf_token }}">
+      <div class="auth-grid"><label class="auth-field">Role name<input type="text" name="display_name" maxlength="120" required placeholder="Data steward"></label><label class="auth-field">Description<input type="text" name="description" maxlength="500" placeholder="Maintains reference data and resolves quality issues"></label></div>
+      <div><button class="meap-btn meap-btn--primary" type="submit">Create role</button></div>
+    </form>
+  </section>
+</section>
+{% endblock %}

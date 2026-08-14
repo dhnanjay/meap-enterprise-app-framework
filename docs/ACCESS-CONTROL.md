@@ -19,6 +19,8 @@ A change applies on the user's next request. Disabling an application does two t
 
 The dashboard itself remains the authenticated workspace home. Users, Audit, and Developer are restricted workspace-administration capabilities and are not ordinary business-application links. Audit is deliberately a separate panel from Users so account administration stays focused while event history can use a dense list-report layout.
 
+Open **Roles** under Platform to configure reusable action-level access. The role editor is generated from the active module registry, so adding or removing a registered permission changes the panel without maintaining a second hard-coded list. Custom roles start with no permissions. Built-in operational roles can be customized; the workspace-administrator role remains fixed with every registered permission.
+
 ## Generic starting roles
 
 Roles are reusable permission bundles; they are not accounting job titles.
@@ -87,15 +89,14 @@ All role patterns are expanded only against permissions declared by the active m
 
 ## Current boundary and next granularity
 
-This release intentionally exposes application-level **view** access in the matrix. Action permissions such as create, execute, approve, reject, export, and administer already exist at the server boundary and can be added to the same UI later without changing the identity or data ownership model.
+The Users matrix intentionally remains application-level **view** access for quick individual exceptions. The separate Roles panel configures the full registered action baseline—view, create, execute, resolve, approve, reject, and future module-defined actions—in one batch. Per-user allow/deny records are applied after the role baseline.
 
 Recommended next steps:
 
-1. Add role-change and custom-role editing UI.
-2. Add an action-permission detail drawer per application.
-3. Add bulk access changes with preview and confirmation.
-4. Add periodic access-review reports and exportable audit evidence.
-5. Validate the migration and scoped repositories against PostgreSQL.
+1. Add custom-role retirement after safe member reassignment.
+2. Add bulk user/role assignment with preview and confirmation.
+3. Add periodic access-review reports and exportable audit evidence.
+4. Validate role and session invalidation flows against PostgreSQL.
 
 ## Operational checks
 

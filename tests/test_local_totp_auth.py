@@ -533,11 +533,13 @@ def test_developer_diagnostics_are_hidden_and_denied_for_non_admin(
         assert workspace.status_code == 200
         assert 'href="/developer"' not in workspace.text
         assert 'href="/audit"' not in workspace.text
+        assert 'href="/auth/admin/roles"' not in workspace.text
         assert "Developer diagnostics" not in workspace.text
         assert client.get("/developer").status_code == 403
         assert client.get("/developer/api/modules").status_code == 403
         assert client.get("/developer/health").status_code == 200
         assert client.get("/audit").status_code == 403
+        assert client.get("/auth/admin/roles").status_code == 403
 
 
 def test_audit_query_is_workspace_scoped_and_filterable(db_session, auth_settings):
@@ -645,6 +647,195 @@ def test_audit_center_is_a_separate_admin_only_workspace_panel(
         assert client.get(f"/audit/{foreign.event_id}").status_code == 404
 
 
+def test_custom_role_panel_controls_action_permissions_end_to_end(
+    db_engine, db_session, auth_settings, monkeypatch
+):
+    import app.main as main_module
+    import app.platform.database.base as db_base
+
+    service, administrator, _admin_secret, admin_codes = bootstrap_and_enroll(
+        db_session, auth_settings
+    )
+    operator, _operator_secret, operator_codes = invite_and_enroll(
+        service, administrator, email="operator@company.com", role="operator"
+    )
+    administrator_role_id = service.get_access_role_by_key(
+        administrator.organization_id, "workspace_admin"
+    ).role_id
+    operator_membership_id = operator.membership_id
+    monkeypatch.setattr(main_module, "get_settings", lambda: auth_settings)
+    monkeypatch.setattr(db_base, "make_engine", lambda url=None: db_engine)
+    db_session.close()
+    app = main_module.create_app()
+
+    with TestClient(app) as client:
+        login_page = client.get("/auth/login")
+        csrf = re.search(
+            r'name="csrf_token" value="([^"]+)"', login_page.text
+        ).group(1)
+        signed_in = client.post(
+            "/auth/login",
+            data={
+                "csrf_token": csrf,
+                "email": "alice@company.com",
+                "code": admin_codes[0],
+                "next": "/auth/admin/roles",
+            },
+            follow_redirects=False,
+        )
+        assert signed_in.status_code == 303
+
+        roles_page = client.get("/auth/admin/roles")
+        assert roles_page.status_code == 200
+        assert "Workspace roles" in roles_page.text
+        assert "10 / 10" in roles_page.text
+        session_csrf = re.search(
+            r'name="csrf_token" value="([^"]+)"', roles_page.text
+        ).group(1)
+        created = client.post(
+            "/auth/admin/roles",
+            data={
+                "csrf_token": session_csrf,
+                "display_name": "Data Steward",
+                "description": "Reads operational records without mutation.",
+            },
+            follow_redirects=False,
+        )
+        assert created.status_code == 303
+        role_location = created.headers["location"]
+        role_key = "data_steward"
+
+        detail = client.get(role_location)
+        assert detail.status_code == 200
+        assert "bank_reconciliation.reconciliation.create" in detail.text
+        assert "journal_entry_review.entry.approve" in detail.text
+        updated = client.post(
+            role_location,
+            data={
+                "csrf_token": session_csrf,
+                "display_name": "Data Steward",
+                "description": "Reads operational records without mutation.",
+                "permissions": [
+                    "bank_reconciliation.reconciliation.view",
+                    "journal_entry_review.review.view",
+                ],
+                "admin_code": admin_codes[1],
+                "confirmation": "confirmed",
+            },
+        )
+        assert updated.status_code == 200
+        assert "Role permissions saved" in updated.text
+        assert "2 of 10" in updated.text
+
+        fixed = client.get(f"/auth/admin/roles/{administrator_role_id}")
+        assert fixed.status_code == 200
+        assert "Fixed safety role" in fixed.text
+        assert "Save role permissions" not in fixed.text
+
+        users = client.get("/auth/admin/users")
+        assert "Data Steward" in users.text
+        confirmation = client.get(
+            f"/auth/admin/users/{operator_membership_id}/confirm/change-role",
+            params={"role": role_key},
+        )
+        assert confirmation.status_code == 200
+        assert "New role: <strong>Data Steward</strong>" in confirmation.text
+        changed = client.post(
+            f"/auth/admin/users/{operator_membership_id}/confirm/change-role",
+            data={
+                "csrf_token": session_csrf,
+                "role": role_key,
+                "admin_code": "",
+                "confirmation": "confirmed",
+            },
+            follow_redirects=False,
+        )
+        assert changed.status_code == 303
+
+        client.cookies.clear()
+        operator_login = client.get("/auth/login")
+        operator_csrf = re.search(
+            r'name="csrf_token" value="([^"]+)"', operator_login.text
+        ).group(1)
+        operator_signed_in = client.post(
+            "/auth/login",
+            data={
+                "csrf_token": operator_csrf,
+                "email": operator.user.email,
+                "code": operator_codes[0],
+                "next": "/",
+            },
+            follow_redirects=False,
+        )
+        assert operator_signed_in.status_code == 303
+        workspace = client.get("/")
+        assert 'href="/auth/admin/roles"' not in workspace.text
+        assert client.get("/auth/admin/roles").status_code == 403
+        assert client.get("/bank-recon").status_code == 200
+        assert client.get("/bank-recon/upload").status_code == 403
+
+
+def test_role_permission_change_revokes_sessions_for_assigned_members(
+    db_session, auth_settings
+):
+    service, administrator, _admin_secret, _admin_codes = bootstrap_and_enroll(
+        db_session, auth_settings
+    )
+    operator, _operator_secret, operator_codes = invite_and_enroll(
+        service, administrator, email="assigned@company.com", role="operator"
+    )
+    role = service.create_access_role(
+        organization_id=administrator.organization_id,
+        display_name="Queue Reader",
+        description="Reads queues without changing them.",
+        actor_user_id=administrator.user_id,
+    )
+    service.update_access_role(
+        role=role,
+        organization_id=administrator.organization_id,
+        display_name=role.display_name,
+        description=role.description,
+        permissions=frozenset({"bank_reconciliation.reconciliation.view"}),
+        registered_permissions=frozenset(
+            {
+                "bank_reconciliation.reconciliation.view",
+                "bank_reconciliation.reconciliation.create",
+            }
+        ),
+        actor_user_id=administrator.user_id,
+    )
+    service.change_membership_role(
+        operator, role_key=role.role_key, actor_user_id=administrator.user_id
+    )
+    login = service.authenticate(
+        email=operator.user.email,
+        code=operator_codes[0],
+        ip="127.0.0.1",
+        user_agent="pytest",
+    )
+    assert login is not None
+    assert login.session.revoked_at is None
+
+    revoked = service.update_access_role(
+        role=role,
+        organization_id=administrator.organization_id,
+        display_name=role.display_name,
+        description=role.description,
+        permissions=frozenset(),
+        registered_permissions=frozenset(
+            {
+                "bank_reconciliation.reconciliation.view",
+                "bank_reconciliation.reconciliation.create",
+            }
+        ),
+        actor_user_id=administrator.user_id,
+    )
+    db_session.refresh(login.session)
+
+    assert revoked == 1
+    assert login.session.revoked_at is not None
+
+
 def test_admin_account_panel_requires_reauthentication_for_recovery_rotation(
     db_engine, db_session, auth_settings, monkeypatch
 ):
@@ -681,6 +872,7 @@ def test_admin_account_panel_requires_reauthentication_for_recovery_rotation(
         workspace = client.get("/")
         assert 'href="/developer"' in workspace.text
         assert 'href="/audit"' in workspace.text
+        assert 'href="/auth/admin/roles"' in workspace.text
         assert client.get("/developer").status_code == 200
 
         disabled = client.post(

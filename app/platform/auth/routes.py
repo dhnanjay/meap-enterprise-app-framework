@@ -14,13 +14,34 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from app.middleware.authentication import session_cookie_name
 from app.platform.audit.service import AuditService
 from app.platform.auth.context import UserContext, get_current_user
-from app.platform.auth.models import AuthSession, Credential, Membership, RecoveryCode
+from app.platform.auth.models import (
+    AccessRole,
+    AuthSession,
+    Credential,
+    Membership,
+    MembershipRole,
+    RecoveryCode,
+)
 from app.platform.auth.service import AuthService, now_utc
 from app.platform.database.session import get_db
-from app.platform.permissions.roles import DEFAULT_ROLE_BUNDLES
+from app.platform.permissions.roles import expand_permission_patterns
 from app.platform.templates.rendering import templates
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
+
+
+def _role_definitions(
+    service: AuthService, organization_id: str
+) -> dict[str, dict[str, object]]:
+    return {
+        role.role_key: {
+            "role_id": role.role_id,
+            "display_name": role.display_name,
+            "description": role.description,
+            "is_system": role.is_system,
+        }
+        for role in service.list_access_roles(organization_id)
+    }
 
 
 def _access_admin_context(
@@ -55,7 +76,9 @@ def _access_admin_context(
         "invite_url": invite_url,
         "error": error,
         "message": message,
-        "role_definitions": DEFAULT_ROLE_BUNDLES,
+        "role_definitions": _role_definitions(
+            service, user.organization_id or ""
+        ),
         "requires_reauthentication": not service.administrator_reauthentication_is_current(
             user.session_id
         ),
@@ -74,6 +97,122 @@ def _admin_membership(db: Session, user: UserContext, membership_id: str) -> Mem
     if membership is None or membership.organization_id != user.organization_id:
         return None
     return membership
+
+
+def _admin_role(
+    db: Session, user: UserContext, role_id: str
+) -> AccessRole | None:
+    if not _is_workspace_admin(user):
+        return None
+    return db.scalar(
+        select(AccessRole).where(
+            AccessRole.role_id == role_id,
+            AccessRole.organization_id == user.organization_id,
+        )
+    )
+
+
+def _permission_groups(request: Request) -> tuple[dict, ...]:
+    """Derive the role editor entirely from the live module registry."""
+    groups = []
+    for registered in sorted(
+        request.app.state.registry.modules.values(),
+        key=lambda item: item.definition.name,
+    ):
+        permissions = []
+        for permission in sorted(registered.definition.permissions):
+            parts = permission.split(".")
+            permissions.append(
+                {
+                    "name": permission,
+                    "resource": " ".join(parts[1:-1]).replace("_", " ").title()
+                    or registered.definition.name,
+                    "action": parts[-1].replace("_", " ").title(),
+                }
+            )
+        groups.append(
+            {
+                "module_id": registered.definition.id,
+                "module_name": registered.definition.name,
+                "permissions": tuple(permissions),
+            }
+        )
+    return tuple(groups)
+
+
+def _roles_context(
+    request: Request,
+    db: Session,
+    user: UserContext,
+    *,
+    error: str | None = None,
+) -> dict:
+    service = AuthService(db, request.app.state.settings)
+    roles = service.list_access_roles(user.organization_id or "")
+    counts = dict(
+        db.execute(
+            select(MembershipRole.role_id, func.count(MembershipRole.membership_id))
+            .join(Membership, Membership.membership_id == MembershipRole.membership_id)
+            .where(Membership.organization_id == user.organization_id)
+            .group_by(MembershipRole.role_id)
+        ).all()
+    )
+    registered = frozenset(request.app.state.registry.all_permissions)
+    return {
+        "current_user": user,
+        "roles": roles,
+        "role_member_counts": counts,
+        "role_permission_counts": {
+            role.role_id: len(
+                expand_permission_patterns(
+                    frozenset(
+                        grant.permission_pattern for grant in role.permission_grants
+                    ),
+                    registered,
+                )
+            )
+            for role in roles
+        },
+        "registered_permission_count": len(registered),
+        "error": error,
+    }
+
+
+def _role_context(
+    request: Request,
+    db: Session,
+    user: UserContext,
+    role: AccessRole,
+    *,
+    selected_permissions: frozenset[str] | None = None,
+    error: str | None = None,
+    message: str | None = None,
+    revoked_sessions: int | None = None,
+) -> dict:
+    registered = frozenset(request.app.state.registry.all_permissions)
+    if selected_permissions is None:
+        selected_permissions = expand_permission_patterns(
+            frozenset(
+                grant.permission_pattern for grant in role.permission_grants
+            ),
+            registered,
+        )
+    service = AuthService(db, request.app.state.settings)
+    return {
+        "current_user": user,
+        "role": role,
+        "permission_groups": _permission_groups(request),
+        "selected_permissions": selected_permissions,
+        "registered_permission_count": len(registered),
+        "is_fixed": role.role_key == "workspace_admin",
+        "requires_reauthentication": not service.administrator_reauthentication_is_current(
+            user.session_id
+        ),
+        "verification_minutes": request.app.state.settings.admin_reauthentication_minutes,
+        "error": error,
+        "message": message,
+        "revoked_sessions": revoked_sessions,
+    }
 
 
 def _ensure_administrator_reauthenticated(
@@ -132,10 +271,11 @@ def _account_context(
             RecoveryCode.consumed_at.is_(None),
         )
     ) or 0
+    service = AuthService(db, request.app.state.settings)
     return {
         "current_user": user,
         "membership": membership,
-        "roles": DEFAULT_ROLE_BUNDLES,
+        "roles": _role_definitions(service, user.organization_id or ""),
         "last_login_at": last_login_at,
         "last_seen_at": last_seen_at,
         "active_sessions": active_sessions,
@@ -373,6 +513,133 @@ def user_admin(
     )
 
 
+@router.get("/admin/roles", response_class=HTMLResponse)
+def role_admin(
+    request: Request,
+    user: UserContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not _is_workspace_admin(user):
+        return _auth_page(request, "auth/forbidden.html", {}, 403)
+    return _auth_page(
+        request,
+        "auth/roles.html",
+        _roles_context(request, db, user),
+    )
+
+
+@router.post("/admin/roles", response_class=HTMLResponse)
+def create_role(
+    request: Request,
+    display_name: str = Form(...),
+    description: str = Form(""),
+    csrf_token: str = Form(...),
+    user: UserContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not _is_workspace_admin(user) or not _valid_session_csrf(user, csrf_token):
+        return _auth_page(request, "auth/forbidden.html", {}, 403)
+    service = AuthService(db, request.app.state.settings)
+    try:
+        role = service.create_access_role(
+            organization_id=user.organization_id or "",
+            display_name=display_name,
+            description=description,
+            actor_user_id=user.user_id,
+        )
+    except ValueError as exc:
+        return _auth_page(
+            request,
+            "auth/roles.html",
+            _roles_context(request, db, user, error=str(exc)),
+            400,
+        )
+    return RedirectResponse(f"/auth/admin/roles/{role.role_id}", status_code=303)
+
+
+@router.get("/admin/roles/{role_id}", response_class=HTMLResponse)
+def role_admin_detail(
+    request: Request,
+    role_id: str,
+    user: UserContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    role = _admin_role(db, user, role_id)
+    if role is None:
+        return _auth_page(request, "auth/forbidden.html", {}, 403)
+    return _auth_page(
+        request,
+        "auth/role_detail.html",
+        _role_context(request, db, user, role),
+    )
+
+
+@router.post("/admin/roles/{role_id}", response_class=HTMLResponse)
+def update_role(
+    request: Request,
+    role_id: str,
+    display_name: str = Form(...),
+    description: str = Form(""),
+    permissions: list[str] = Form([]),
+    admin_code: str = Form(""),
+    confirmation: str = Form(...),
+    csrf_token: str = Form(...),
+    user: UserContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    role = _admin_role(db, user, role_id)
+    if role is None or not _valid_session_csrf(user, csrf_token):
+        return _auth_page(request, "auth/forbidden.html", {}, 403)
+    service = AuthService(db, request.app.state.settings)
+    selected = frozenset(permissions)
+    error = None
+    revoked_sessions = None
+    try:
+        if confirmation != "confirmed":
+            raise ValueError("Confirm that you understand the effect of this role change")
+        if not _ensure_administrator_reauthenticated(
+            request, service, user, admin_code
+        ):
+            raise ValueError("Administrator reauthentication was not accepted")
+        revoked_sessions = service.update_access_role(
+            role=role,
+            organization_id=user.organization_id or "",
+            display_name=display_name,
+            description=description,
+            permissions=selected,
+            registered_permissions=frozenset(
+                request.app.state.registry.all_permissions
+            ),
+            actor_user_id=user.user_id,
+        )
+    except ValueError as exc:
+        error = str(exc)
+        AuditService(db).record(
+            event_type="auth.role.permissions_change_failed",
+            outcome="FAILED",
+            organization_id=role.organization_id,
+            actor_user_id=user.user_id,
+            entity_type="access_role",
+            entity_id=role.role_id,
+            event_data={"reason": error},
+        )
+    return _auth_page(
+        request,
+        "auth/role_detail.html",
+        _role_context(
+            request,
+            db,
+            user,
+            role,
+            selected_permissions=selected if error else None,
+            error=error,
+            message="Role permissions saved." if not error else None,
+            revoked_sessions=revoked_sessions,
+        ),
+        400 if error else 200,
+    )
+
+
 @router.get("/admin/users/{membership_id}", response_class=HTMLResponse)
 def user_admin_detail(
     request: Request,
@@ -458,9 +725,14 @@ def confirm_admin_action(
     action_definition = _ADMIN_ACTIONS.get(action)
     if membership is None or action_definition is None:
         return _auth_page(request, "auth/forbidden.html", {}, 403)
-    if action == "change-role" and role not in DEFAULT_ROLE_BUNDLES:
-        return _auth_page(request, "auth/forbidden.html", {}, 403)
     service = AuthService(db, request.app.state.settings)
+    role_definition = (
+        service.get_access_role_by_key(user.organization_id or "", role or "")
+        if action == "change-role"
+        else None
+    )
+    if action == "change-role" and role_definition is None:
+        return _auth_page(request, "auth/forbidden.html", {}, 403)
     return _auth_page(
         request,
         "auth/confirm_action.html",
@@ -470,7 +742,7 @@ def confirm_admin_action(
             "action": action,
             "action_definition": action_definition,
             "role": role,
-            "role_definition": DEFAULT_ROLE_BUNDLES.get(role or ""),
+            "role_definition": role_definition,
             "requires_reauthentication": not service.administrator_reauthentication_is_current(
                 user.session_id
             ),
@@ -505,7 +777,14 @@ def perform_admin_action(
     try:
         if confirmation != "confirmed":
             raise ValueError("Confirm that you understand the effect of this change")
-        if action == "change-role" and role not in DEFAULT_ROLE_BUNDLES:
+        role_definition = (
+            service.get_access_role_by_key(
+                user.organization_id or "", role or ""
+            )
+            if action == "change-role"
+            else None
+        )
+        if action == "change-role" and role_definition is None:
             raise ValueError("Select a valid workspace role")
         if membership.user_id == user.user_id and action in {
             "change-role",
@@ -576,7 +855,9 @@ def perform_admin_action(
                 "action": action,
                 "action_definition": action_definition,
                 "role": role,
-                "role_definition": DEFAULT_ROLE_BUNDLES.get(role or ""),
+                "role_definition": service.get_access_role_by_key(
+                    user.organization_id or "", role or ""
+                ) if action == "change-role" else None,
                 "requires_reauthentication": not service.administrator_reauthentication_is_current(
                     user.session_id
                 ),

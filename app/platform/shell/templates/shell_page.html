@@ -112,6 +112,11 @@
       {% if is_workspace_admin %}
       <div class="meap-nav-group">
         <div class="meap-nav-group-title">Platform</div>
+        <a href="/auth/admin/roles"
+           class="meap-nav-item{% if current_path.startswith('/auth/admin/roles') %} meap-nav-item--active{% endif %}"
+           {% if current_path.startswith('/auth/admin/roles') %}aria-current="page"{% endif %}>
+          <span class="meap-nav-text">Roles</span>
+        </a>
         <a href="/audit"
            class="meap-nav-item{% if current_path.startswith('/audit') %} meap-nav-item--active{% endif %}"
            hx-get="/audit" hx-target="#main-content" hx-push-url="true"

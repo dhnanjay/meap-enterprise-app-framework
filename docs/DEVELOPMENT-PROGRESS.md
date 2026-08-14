@@ -270,3 +270,39 @@ Added Audit as a dedicated, data-dense Platform panel rather than expanding the 
 - Local `meap.db` was backed up as `meap.before-upgrade-20260814-022015.db`, upgraded to `cc34e1a6f942`, and confirmed current.
 - Browser-level layout inspection confirmed the filter bar wraps without document overflow, the side navigation becomes an overlay below 960px, and the dense table scrolls inside its own container at 800px and 600px viewports.
 - No repository state was published during this increment.
+
+## 2026-08-13 — Configurable roles and action permissions
+
+### Outcome
+
+Extended application-level user visibility controls with a separate, registry-driven Roles panel for reusable action-level authorization.
+
+### Added
+
+- Administrator-only workspace role list with effective permission and member counts.
+- Deny-by-default custom-role creation with stable workspace-scoped role keys.
+- Per-role action editor generated exclusively from active module permission declarations.
+- Batched view, create, execute, resolve, escalate, flag, approve, reject, and future action grants.
+- Dynamic custom-role availability in invitations and account role changes.
+- Fixed `workspace_admin` safety role that cannot be reduced through the route or service.
+- Exact registered-permission validation, foreign-workspace role rejection, affected-session revocation, and audit events.
+- Clear precedence between role baselines and explicit per-user allow/deny overrides.
+- [`ROLE-PERMISSIONS.md`](ROLE-PERMISSIONS.md) as the administrator and developer contract.
+
+### UX and security decisions
+
+- Roles remains separate from Users so the quick application matrix does not become an unreadable action grid.
+- One batch save and the existing administrator verification window avoid repeated authenticator prompts.
+- Built-in wildcard roles become exact reviewed grants after their first explicit save; custom roles are exact from creation.
+- Custom-role deletion is deferred until safe reassignment and retention rules are implemented.
+
+### Verification
+
+- Service coverage exercises exact grants, workspace isolation, and administrator-role immutability.
+- Authenticated browser-flow coverage creates and configures a custom role, assigns it to a user, confirms registered view access, and receives `403` for an ungranted create route.
+- Session-invalidation coverage proves a role change revokes active sessions assigned to the role.
+- Browser-level inspection confirmed the role list and action matrix have no document overflow at desktop or 600px; dense permission tables scroll only within their own containers.
+- Full suite: 161 passed.
+- Alembic autogenerate check reports no schema drift.
+- No database migration is required; this increment activates the existing access-role schema.
+- No repository state has been published.

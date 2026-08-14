@@ -51,6 +51,8 @@ Read [`docs/DEVELOPER-CUSTOMIZATION-GUIDE.md`](docs/DEVELOPER-CUSTOMIZATION-GUID
 
 Read [`docs/ACCESS-CONTROL.md`](docs/ACCESS-CONTROL.md) for the generic role model, the administrator access matrix, per-user overrides, and the workspace data-ownership contract.
 
+Read [`docs/ROLE-PERMISSIONS.md`](docs/ROLE-PERMISSIONS.md) before configuring or extending workspace roles. It documents the registry-driven action matrix, role safety rules, session invalidation, and grant precedence.
+
 Read [`docs/AUDIT-CENTER.md`](docs/AUDIT-CENTER.md) for the separate administrator audit panel, workspace-isolation contract, supported filters, and event-data safety rules.
 
 Read [`docs/DATABASE-OPERATIONS.md`](docs/DATABASE-OPERATIONS.md) for revision status, automatic SQLite backups, safe upgrades, legacy local databases, rollback, health checks, and PostgreSQL deployment preparation.
