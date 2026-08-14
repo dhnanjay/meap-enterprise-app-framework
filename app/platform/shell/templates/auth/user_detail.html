@@ -1,0 +1,42 @@
+{% extends "auth/base.html" %}
+{% block auth_content %}
+<section class="auth-panel auth-panel--wide auth-stack" aria-labelledby="account-title">
+  <div class="auth-actions">
+    <div><div class="meap-overline">Account administration</div><h1 id="account-title">{{ membership.user.display_name }}</h1><p class="meap-text-muted">{{ membership.user.email }} · identity asserted by an administrator</p></div>
+    <a class="meap-btn meap-btn--quiet" href="/auth/admin/users">All users</a>
+  </div>
+  {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
+  <div class="auth-summary">
+    <div><span class="auth-label">Membership</span><strong class="auth-value">{{ membership.status }}</strong></div>
+    <div><span class="auth-label">Role</span><strong class="auth-value">{{ roles.get(membership.role, {}).get('display_name', membership.role) }}</strong></div>
+    <div><span class="auth-label">Active sessions</span><strong class="auth-value">{{ active_sessions }}</strong></div>
+    <div><span class="auth-label">Credential</span><strong class="auth-value">{% if credential and not credential.revoked_at %}TOTP enrolled{% else %}Not enrolled{% endif %}</strong></div>
+  </div>
+  <div class="auth-grid">
+    <div><span class="auth-label">Last sign-in</span><span class="auth-value">{{ last_login_at or 'Never' }}</span></div>
+    <div><span class="auth-label">Last activity</span><span class="auth-value">{{ last_seen_at or 'Never' }}</span></div>
+    <div><span class="auth-label">Authenticator enrolled</span><span class="auth-value">{{ credential.enrolled_at if credential else 'Never' }}</span></div>
+    <div><span class="auth-label">Recovery codes remaining</span><span class="auth-value">{{ recovery_codes_remaining }}</span></div>
+  </div>
+  <section class="auth-section auth-stack" aria-labelledby="role-title">
+    <div><h2 id="role-title">Workspace role</h2><p class="meap-text-muted">Changing a role revokes the user's sessions so permissions cannot remain stale.</p></div>
+    <form class="auth-actions auth-actions--start" action="/auth/admin/users/{{ membership.membership_id }}/confirm/change-role" method="get">
+      <label class="auth-field">New role<select name="role">{% for key, definition in roles.items() %}<option value="{{ key }}" {% if key == membership.role %}selected{% endif %}>{{ definition.display_name }}</option>{% endfor %}</select></label>
+      <button class="meap-btn meap-btn--primary" type="submit">Review role change</button>
+    </form>
+  </section>
+  <section class="auth-section" aria-labelledby="security-title">
+    <h2 id="security-title">Access and credential operations</h2>
+    <div class="auth-risk-list">
+      {% if membership.status == 'suspended' %}
+      <div class="auth-risk-row"><div><strong>Reactivate account</strong><div class="meap-text-muted">Allow sign-in with the existing credential.</div></div><a class="meap-btn meap-btn--quiet" href="/auth/admin/users/{{ membership.membership_id }}/confirm/reactivate">Review</a></div>
+      {% elif membership.status == 'active' %}
+      <div class="auth-risk-row"><div><strong>Suspend account</strong><div class="meap-text-muted">Block access and revoke all active sessions.</div></div><a class="meap-btn meap-btn--quiet" href="/auth/admin/users/{{ membership.membership_id }}/confirm/suspend">Review</a></div>
+      {% endif %}
+      <div class="auth-risk-row"><div><strong>Revoke active sessions</strong><div class="meap-text-muted">Sign the user out everywhere without changing the credential.</div></div><a class="meap-btn meap-btn--quiet" href="/auth/admin/users/{{ membership.membership_id }}/confirm/revoke-sessions">Review</a></div>
+      <div class="auth-risk-row"><div><strong>Reset and re-enroll authenticator</strong><div class="meap-text-muted">Invalidate TOTP, recovery codes, and sessions; issue a new enrollment link.</div></div><a class="meap-btn meap-btn--quiet" href="/auth/admin/users/{{ membership.membership_id }}/confirm/reenroll">Review</a></div>
+      <div class="auth-risk-row"><div><strong>Replace recovery codes</strong><div class="meap-text-muted">Invalidate all existing recovery codes and show replacements once.</div></div><a class="meap-btn meap-btn--quiet" href="/auth/admin/users/{{ membership.membership_id }}/confirm/recovery-codes">Review</a></div>
+    </div>
+  </section>
+</section>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "auth/base.html" %}
+{% block auth_content %}
+<section class="auth-panel auth-stack" aria-labelledby="result-title">
+  <div><div class="meap-overline">Operation complete</div><h1 id="result-title">{{ result_title }}</h1><p>{{ membership.user.display_name }} · {{ membership.user.email }}</p></div>
+  {% if is_secret %}<div class="auth-warning"><strong>Copy and transfer this securely now.</strong> This information will not be displayed again.</div>{% else %}<div class="auth-success">The operation completed successfully.</div>{% endif %}
+  <ul class="auth-result-list">{% for value in result_values %}<li>{{ value }}</li>{% endfor %}</ul>
+  <div class="auth-actions"><a class="meap-btn meap-btn--quiet" href="/auth/admin/users">All users</a><a class="meap-btn meap-btn--primary" href="/auth/admin/users/{{ membership.membership_id }}">Return to account</a></div>
+</section>
+{% endblock %}

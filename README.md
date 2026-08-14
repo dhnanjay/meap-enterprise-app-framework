@@ -53,6 +53,8 @@ Read [`docs/ACCESS-CONTROL.md`](docs/ACCESS-CONTROL.md) for the generic role mod
 
 Read [`docs/DATABASE-OPERATIONS.md`](docs/DATABASE-OPERATIONS.md) for revision status, automatic SQLite backups, safe upgrades, legacy local databases, rollback, health checks, and PostgreSQL deployment preparation.
 
+Read [`docs/LLM-MODULE-GENERATOR-ROADMAP.md`](docs/LLM-MODULE-GENERATOR-ROADMAP.md) for the parked, optional module-generator design. It describes a future review-gated workflow; no runtime code generation or LLM dependency is enabled today.
+
 > **Authentication:** MEAP includes self-hosted, administrator-issued TOTP login with encrypted credentials, recovery codes, server-side sessions, CSRF protection, and fail-closed access. It sends no email and does not verify mailbox ownership. Read [`docs/AUTHENTICATION-OPERATIONS.md`](docs/AUTHENTICATION-OPERATIONS.md) before deployment.
 
 ---

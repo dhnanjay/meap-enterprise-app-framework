@@ -274,9 +274,13 @@ class AuthService:
         self.db.commit()
 
     def issue_enrollment(
-        self, membership: Membership, *, created_by_user_id: str | None
+        self,
+        membership: Membership,
+        *,
+        created_by_user_id: str | None,
+        enforce_admission: bool = True,
     ) -> EnrollmentResult:
-        if self.settings.admission_mode == "disabled":
+        if enforce_admission and self.settings.admission_mode == "disabled":
             raise ValueError("New memberships are disabled")
         self.db.execute(
             update(EnrollmentToken)
@@ -499,18 +503,24 @@ class AuthService:
         )
         return ["-".join(code[index:index + 8] for index in range(0, 32, 8)) for code in raw_codes]
 
-    def regenerate_recovery_codes(self, user_id: str) -> list[str]:
-        """Replace all recovery codes from a trusted host-side operation."""
+    def regenerate_recovery_codes(
+        self,
+        user_id: str,
+        *,
+        actor_user_id: str | None = None,
+        operation_source: str = "host_cli",
+    ) -> list[str]:
+        """Replace every recovery code and return the replacements exactly once."""
         user = self.db.get(User, user_id)
         if user is None or not user.is_active:
             raise ValueError("Active user not found")
         codes = self._replace_recovery_codes(user_id)
         AuditService(self.db).record(
             event_type="auth.recovery_codes.regenerated",
-            actor_user_id=user_id,
+            actor_user_id=actor_user_id or user_id,
             entity_type="user",
             entity_id=user_id,
-            event_data={"operation_source": "host_cli"},
+            event_data={"operation_source": operation_source},
             commit=False,
         )
         self.db.commit()
@@ -524,6 +534,53 @@ class AuthService:
             if hmac.compare_digest(totp.at(counter * 30), submitted):
                 return counter
         return None
+
+    def _consume_user_code(self, user: User, code: str) -> tuple[bool, str | None]:
+        """Validate and atomically consume a TOTP step or recovery code."""
+        normalized_recovery = re.sub(r"[^A-Fa-f0-9]", "", code).upper()
+        if len(normalized_recovery) == 32:
+            recovery = self.db.scalar(
+                select(RecoveryCode).where(
+                    RecoveryCode.user_id == user.user_id,
+                    RecoveryCode.code_hmac == self._token_hmac(normalized_recovery),
+                    RecoveryCode.consumed_at.is_(None),
+                )
+            )
+            if recovery:
+                recovery.consumed_at = now_utc()
+                return True, "recovery_code"
+            return False, None
+
+        credential = self.db.scalar(
+            select(Credential).where(
+                Credential.user_id == user.user_id,
+                Credential.credential_type == "totp",
+                Credential.revoked_at.is_(None),
+            )
+        )
+        if credential is None:
+            return False, None
+        secret = self._decrypt(
+            credential.encrypted_secret,
+            credential.nonce,
+            aad=f"credential:{credential.credential_id}:totp",
+            key_id=credential.encryption_key_id,
+        )
+        counter = self._matching_counter(secret, code)
+        if counter is None:
+            return False, None
+        result = self.db.execute(
+            update(Credential)
+            .where(
+                Credential.credential_id == credential.credential_id,
+                or_(
+                    Credential.last_accepted_counter.is_(None),
+                    Credential.last_accepted_counter < counter,
+                ),
+            )
+            .values(last_accepted_counter=counter, last_used_at=now_utc())
+        )
+        return result.rowcount == 1, "totp" if result.rowcount == 1 else None
 
     def _throttle_keys(self, email: str, ip: str) -> tuple[str, str]:
         return self._token_hmac(f"account-ip:{normalize_email(email)}:{ip}"), self._token_hmac(f"ip:{ip}")
@@ -567,50 +624,9 @@ class AuthService:
                 select(Membership).where(Membership.user_id == user.user_id, Membership.status == "active")
             )
         valid = False
-        used_recovery = False
+        method = None
         if user and membership:
-            normalized_recovery = re.sub(r"[^A-Fa-f0-9]", "", code).upper()
-            if len(normalized_recovery) == 32:
-                recovery = self.db.scalar(
-                    select(RecoveryCode).where(
-                        RecoveryCode.user_id == user.user_id,
-                        RecoveryCode.code_hmac == self._token_hmac(normalized_recovery),
-                        RecoveryCode.consumed_at.is_(None),
-                    )
-                )
-                if recovery:
-                    recovery.consumed_at = now_utc()
-                    valid = True
-                    used_recovery = True
-            else:
-                credential = self.db.scalar(
-                    select(Credential).where(
-                        Credential.user_id == user.user_id,
-                        Credential.credential_type == "totp",
-                        Credential.revoked_at.is_(None),
-                    )
-                )
-                if credential:
-                    secret = self._decrypt(
-                        credential.encrypted_secret,
-                        credential.nonce,
-                        aad=f"credential:{credential.credential_id}:totp",
-                        key_id=credential.encryption_key_id,
-                    )
-                    counter = self._matching_counter(secret, code)
-                    if counter is not None:
-                        result = self.db.execute(
-                            update(Credential)
-                            .where(
-                                Credential.credential_id == credential.credential_id,
-                                or_(
-                                    Credential.last_accepted_counter.is_(None),
-                                    Credential.last_accepted_counter < counter,
-                                ),
-                            )
-                            .values(last_accepted_counter=counter, last_used_at=now_utc())
-                        )
-                        valid = result.rowcount == 1
+            valid, method = self._consume_user_code(user, code)
         if not valid or user is None or membership is None:
             self.db.rollback()
             AuditService(self.db).record(
@@ -645,11 +661,213 @@ class AuthService:
             actor_user_id=user.user_id,
             entity_type="session",
             entity_id=session.session_id,
-            event_data={"method": "recovery_code" if used_recovery else "totp"},
+            event_data={"method": method},
             commit=False,
         )
         self.db.commit()
-        return LoginResult(raw_session, session, used_recovery)
+        return LoginResult(raw_session, session, method == "recovery_code")
+
+    def reauthenticate_administrator(self, *, user_id: str, code: str, ip: str) -> bool:
+        """Require a fresh local credential before a privileged operation."""
+        user = self.db.get(User, user_id)
+        if user is None or not user.is_active:
+            return False
+        keys = self._throttle_keys(user.email, ip)
+        if self._is_throttled(keys):
+            AuditService(self.db).record(
+                event_type="auth.admin.reauthentication_throttled",
+                outcome="FAILED",
+                actor_user_id=user_id,
+                event_data={"account_reference": self._token_hmac(user.normalized_email)},
+            )
+            return False
+        valid, method = self._consume_user_code(user, code)
+        if not valid:
+            self.db.rollback()
+            AuditService(self.db).record(
+                event_type="auth.admin.reauthentication_failed",
+                outcome="FAILED",
+                actor_user_id=user_id,
+                event_data={"account_reference": self._token_hmac(user.normalized_email)},
+                commit=False,
+            )
+            self._record_failure(keys)
+            return False
+        self.db.execute(delete(LoginThrottle).where(LoginThrottle.throttle_key.in_(keys)))
+        AuditService(self.db).record(
+            event_type="auth.admin.reauthenticated",
+            actor_user_id=user_id,
+            entity_type="user",
+            entity_id=user_id,
+            event_data={"method": method},
+            commit=False,
+        )
+        self.db.commit()
+        return True
+
+    def _is_workspace_admin(self, membership: Membership) -> bool:
+        return any(
+            assignment.role.role_key == "workspace_admin"
+            for assignment in membership.role_assignments
+        ) or membership.role in {"admin", "workspace_admin"}
+
+    def _active_admin_count(self, organization_id: str) -> int:
+        memberships = self.db.scalars(
+            select(Membership).where(
+                Membership.organization_id == organization_id,
+                Membership.status == "active",
+            )
+        ).all()
+        return sum(
+            1
+            for membership in memberships
+            if membership.user.is_active and self._is_workspace_admin(membership)
+        )
+
+    def _protect_last_admin(self, membership: Membership) -> None:
+        if (
+            membership.status == "active"
+            and self._is_workspace_admin(membership)
+            and self._active_admin_count(membership.organization_id) <= 1
+        ):
+            raise ValueError("The workspace must retain at least one active administrator")
+
+    def revoke_membership_sessions(
+        self,
+        membership: Membership,
+        *,
+        actor_user_id: str,
+        event_type: str = "auth.membership.sessions_revoked",
+        commit: bool = True,
+    ) -> int:
+        moment = now_utc()
+        result = self.db.execute(
+            update(AuthSession)
+            .where(
+                AuthSession.membership_id == membership.membership_id,
+                AuthSession.revoked_at.is_(None),
+            )
+            .values(revoked_at=moment)
+        )
+        count = int(result.rowcount or 0)
+        AuditService(self.db).record(
+            event_type=event_type,
+            organization_id=membership.organization_id,
+            actor_user_id=actor_user_id,
+            entity_type="membership",
+            entity_id=membership.membership_id,
+            event_data={"subject_user_id": membership.user_id, "session_count": count},
+            commit=False,
+        )
+        if commit:
+            self.db.commit()
+        return count
+
+    def change_membership_role(
+        self, membership: Membership, *, role_key: str, actor_user_id: str
+    ) -> None:
+        current_roles = tuple(
+            sorted(assignment.role.role_key for assignment in membership.role_assignments)
+        )
+        if current_roles == (role_key,):
+            raise ValueError("The user already has that workspace role")
+        if self._is_workspace_admin(membership) and role_key != "workspace_admin":
+            self._protect_last_admin(membership)
+        role = self.assign_role(
+            membership, role_key, assigned_by_user_id=actor_user_id
+        )
+        self.revoke_membership_sessions(
+            membership,
+            actor_user_id=actor_user_id,
+            event_type="auth.membership.sessions_revoked_for_role_change",
+            commit=False,
+        )
+        AuditService(self.db).record(
+            event_type="auth.membership.role_changed",
+            organization_id=membership.organization_id,
+            actor_user_id=actor_user_id,
+            entity_type="membership",
+            entity_id=membership.membership_id,
+            event_data={"previous_roles": current_roles, "new_role": role.role_key},
+            commit=False,
+        )
+        self.db.commit()
+
+    def set_membership_status(
+        self, membership: Membership, *, status: str, actor_user_id: str
+    ) -> None:
+        if status not in {"active", "suspended"}:
+            raise ValueError("Unsupported membership status")
+        previous = membership.status
+        if status == "suspended":
+            if previous != "active":
+                raise ValueError("Only an active membership can be suspended")
+            self._protect_last_admin(membership)
+            membership.status = "suspended"
+            membership.suspended_at = now_utc()
+            self.revoke_membership_sessions(
+                membership,
+                actor_user_id=actor_user_id,
+                event_type="auth.membership.sessions_revoked_for_suspension",
+                commit=False,
+            )
+        else:
+            if previous != "suspended":
+                raise ValueError("Only a suspended membership can be reactivated")
+            membership.status = "active"
+            membership.suspended_at = None
+            if membership.activated_at is None:
+                membership.activated_at = now_utc()
+        AuditService(self.db).record(
+            event_type=(
+                "auth.membership.suspended"
+                if status == "suspended"
+                else "auth.membership.reactivated"
+            ),
+            organization_id=membership.organization_id,
+            actor_user_id=actor_user_id,
+            entity_type="membership",
+            entity_id=membership.membership_id,
+            event_data={"previous_status": previous, "subject_user_id": membership.user_id},
+            commit=False,
+        )
+        self.db.commit()
+
+    def begin_reenrollment(
+        self, membership: Membership, *, actor_user_id: str
+    ) -> EnrollmentResult:
+        self._protect_last_admin(membership)
+        moment = now_utc()
+        self.db.execute(
+            update(Credential)
+            .where(Credential.user_id == membership.user_id, Credential.revoked_at.is_(None))
+            .values(revoked_at=moment)
+        )
+        self.db.execute(delete(RecoveryCode).where(RecoveryCode.user_id == membership.user_id))
+        membership.status = "pending"
+        membership.suspended_at = None
+        self.revoke_membership_sessions(
+            membership,
+            actor_user_id=actor_user_id,
+            event_type="auth.membership.sessions_revoked_for_reenrollment",
+            commit=False,
+        )
+        result = self.issue_enrollment(
+            membership,
+            created_by_user_id=actor_user_id,
+            enforce_admission=False,
+        )
+        AuditService(self.db).record(
+            event_type="auth.credential.reenrollment_started",
+            organization_id=membership.organization_id,
+            actor_user_id=actor_user_id,
+            entity_type="membership",
+            entity_id=membership.membership_id,
+            event_data={"subject_user_id": membership.user_id},
+            commit=False,
+        )
+        self.db.commit()
+        return result
 
     def resolve_session(self, raw_token: str) -> AuthSession | None:
         session = self.db.scalar(

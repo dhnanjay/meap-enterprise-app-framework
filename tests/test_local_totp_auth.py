@@ -11,7 +11,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from app.platform.auth.models import Credential, EnrollmentToken, RecoveryCode
+from app.platform.audit.models import AuditEvent
+from app.platform.auth.models import AuthSession, Credential, EnrollmentToken, RecoveryCode
 from app.platform.auth.service import AuthService
 from app.settings import Settings
 
@@ -46,6 +47,27 @@ def bootstrap_and_enroll(db_session, auth_settings):
     code = pyotp.TOTP(secret).now()
     membership, recovery_codes = service.confirm_enrollment(issued.token, code)
     return service, membership, secret, recovery_codes
+
+
+def invite_and_enroll(service, administrator, *, email, role="operator"):
+    issued = service.invite_user(
+        organization_id=administrator.organization_id,
+        email=email,
+        display_name=email.split("@", 1)[0].title(),
+        role=role,
+        actor_user_id=administrator.user_id,
+    )
+    enrollment = service.get_enrollment(issued.token)
+    assert enrollment is not None
+    secret = service._decrypt(
+        enrollment.encrypted_totp_secret,
+        enrollment.nonce,
+        aad=f"enrollment:{enrollment.enrollment_id}",
+    )
+    membership, recovery_codes = service.confirm_enrollment(
+        issued.token, pyotp.TOTP(secret).now()
+    )
+    return membership, secret, recovery_codes
 
 
 def test_bootstrap_is_database_guarded_and_secret_is_encrypted(db_session, auth_settings):
@@ -131,6 +153,124 @@ def test_regenerating_recovery_codes_invalidates_every_old_code(db_session, auth
         user_agent="pytest",
     )
     assert replacement is not None and replacement.used_recovery_code
+
+
+def test_sensitive_admin_actions_require_fresh_reauthentication(db_session, auth_settings):
+    service, administrator, _secret, recovery_codes = bootstrap_and_enroll(
+        db_session, auth_settings
+    )
+    assert service.reauthenticate_administrator(
+        user_id=administrator.user_id,
+        code=recovery_codes[0],
+        ip="127.0.0.1",
+    )
+    assert not service.reauthenticate_administrator(
+        user_id=administrator.user_id,
+        code=recovery_codes[0],
+        ip="127.0.0.1",
+    )
+    events = db_session.scalars(
+        select(AuditEvent).where(
+            AuditEvent.event_type == "auth.admin.reauthenticated"
+        )
+    ).all()
+    assert len(events) == 1
+
+
+def test_last_active_administrator_cannot_be_removed_or_reset(db_session, auth_settings):
+    service, administrator, _secret, _codes = bootstrap_and_enroll(
+        db_session, auth_settings
+    )
+    with pytest.raises(ValueError, match="retain at least one"):
+        service.change_membership_role(
+            administrator,
+            role_key="operator",
+            actor_user_id=administrator.user_id,
+        )
+    with pytest.raises(ValueError, match="retain at least one"):
+        service.set_membership_status(
+            administrator,
+            status="suspended",
+            actor_user_id=administrator.user_id,
+        )
+    with pytest.raises(ValueError, match="retain at least one"):
+        service.begin_reenrollment(
+            administrator,
+            actor_user_id=administrator.user_id,
+        )
+    assert administrator.status == "active"
+    assert administrator.role == "workspace_admin"
+
+
+def test_role_change_and_suspension_revoke_sessions_immediately(db_session, auth_settings):
+    service, administrator, _admin_secret, _admin_codes = bootstrap_and_enroll(
+        db_session, auth_settings
+    )
+    member, _secret, member_codes = invite_and_enroll(
+        service, administrator, email="bob@company.com"
+    )
+    login = service.authenticate(
+        email=member.user.email,
+        code=member_codes[0],
+        ip="127.0.0.2",
+        user_agent="pytest",
+    )
+    assert login is not None
+    service.change_membership_role(
+        member, role_key="analyst", actor_user_id=administrator.user_id
+    )
+    db_session.refresh(login.session)
+    assert db_session.get(AuthSession, login.session.session_id).revoked_at is not None
+
+    second_login = service.authenticate(
+        email=member.user.email,
+        code=member_codes[1],
+        ip="127.0.0.3",
+        user_agent="pytest",
+    )
+    assert second_login is not None
+    service.set_membership_status(
+        member, status="suspended", actor_user_id=administrator.user_id
+    )
+    assert member.status == "suspended"
+    db_session.refresh(second_login.session)
+    assert db_session.get(AuthSession, second_login.session.session_id).revoked_at is not None
+    service.set_membership_status(
+        member, status="active", actor_user_id=administrator.user_id
+    )
+    assert member.status == "active"
+
+
+def test_reenrollment_invalidates_old_credentials_codes_and_sessions(db_session, auth_settings):
+    service, administrator, _admin_secret, _admin_codes = bootstrap_and_enroll(
+        db_session, auth_settings
+    )
+    member, _secret, member_codes = invite_and_enroll(
+        service, administrator, email="bob@company.com"
+    )
+    login = service.authenticate(
+        email=member.user.email,
+        code=member_codes[0],
+        ip="127.0.0.4",
+        user_agent="pytest",
+    )
+    assert login is not None
+    issued = service.begin_reenrollment(
+        member, actor_user_id=administrator.user_id
+    )
+    assert member.status == "pending"
+    assert service.get_enrollment(issued.token) is not None
+    db_session.refresh(login.session)
+    assert db_session.get(AuthSession, login.session.session_id).revoked_at is not None
+    assert db_session.scalar(
+        select(Credential).where(
+            Credential.user_id == member.user_id,
+            Credential.revoked_at.is_(None),
+        )
+    ) is None
+    assert db_session.scalars(
+        select(RecoveryCode).where(RecoveryCode.user_id == member.user_id)
+    ).all() == []
 
 
 def test_domain_allowlist_restricts_admin_asserted_invites(db_session, auth_settings):
@@ -314,3 +454,63 @@ def test_navigation_deny_hides_link_and_blocks_direct_route(
 
         direct = client.get("/bank-recon")
         assert direct.status_code == 403
+
+
+def test_admin_account_panel_requires_reauthentication_for_recovery_rotation(
+    db_engine, db_session, auth_settings, monkeypatch
+):
+    import app.main as main_module
+    import app.platform.database.base as db_base
+
+    _service, membership, _secret, recovery_codes = bootstrap_and_enroll(
+        db_session, auth_settings
+    )
+    membership_id = membership.membership_id
+    monkeypatch.setattr(main_module, "get_settings", lambda: auth_settings)
+    monkeypatch.setattr(db_base, "make_engine", lambda url=None: db_engine)
+    db_session.close()
+    app = main_module.create_app()
+    with TestClient(app) as client:
+        login_page = client.get("/auth/login")
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', login_page.text).group(1)
+        signed_in = client.post(
+            "/auth/login",
+            data={
+                "csrf_token": csrf,
+                "email": "alice@company.com",
+                "code": recovery_codes[0],
+                "next": "/auth/admin/users",
+            },
+            follow_redirects=False,
+        )
+        assert signed_in.status_code == 303
+
+        users = client.get("/auth/admin/users")
+        assert users.status_code == 200
+        assert "Users and memberships" in users.text
+        assert "Manage" in users.text
+
+        detail = client.get(f"/auth/admin/users/{membership_id}")
+        assert detail.status_code == 200
+        assert "Access and credential operations" in detail.text
+        assert "Recovery codes remaining" in detail.text
+
+        confirmation = client.get(
+            f"/auth/admin/users/{membership_id}/confirm/recovery-codes"
+        )
+        assert confirmation.status_code == 200
+        assert "Confirm recovery-code replacement" in confirmation.text
+        session_csrf = re.search(
+            r'name="csrf_token" value="([^"]+)"', confirmation.text
+        ).group(1)
+        replaced = client.post(
+            f"/auth/admin/users/{membership_id}/confirm/recovery-codes",
+            data={
+                "csrf_token": session_csrf,
+                "admin_code": recovery_codes[1],
+                "confirmation": "confirmed",
+            },
+        )
+        assert replaced.status_code == 200
+        assert "Replacement recovery codes" in replaced.text
+        assert "displayed again" in replaced.text

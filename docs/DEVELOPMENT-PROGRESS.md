@@ -182,3 +182,33 @@ Made Alembic the single schema authority for every runnable MEAP environment, pr
 - Test profile may use isolated metadata creation; runnable deployments may not.
 - PostgreSQL backup remains an operator/deployment responsibility.
 - No code or repository state was published during this increment.
+
+## 2026-08-13 — Professional account administration
+
+### Outcome
+
+Extended the dynamic Users access matrix into a complete, self-hosted account-operations panel while preserving administrator-asserted identity and the zero-email, zero-IT authentication model.
+
+### Added
+
+- Per-account administration pages with membership status, generic role, active-session count, last sign-in, last activity, TOTP enrollment time, and remaining recovery-code count.
+- Dedicated review and confirmation screens for role changes, suspension, reactivation, session revocation, authenticator reset/re-enrollment, recovery-code replacement, and application-access changes.
+- Fresh administrator TOTP or recovery-code verification for every sensitive operation, using the existing replay protection and throttling controls.
+- Immediate session revocation on role changes and suspension.
+- Complete authenticator reset that invalidates the current TOTP credential, recovery codes, and sessions before issuing a one-time replacement enrollment link.
+- One-time administrator-driven recovery-code replacement.
+- Last-active-administrator protection for demotion, suspension, and authenticator reset.
+- Success and failure audit events for privileged operations.
+- Responsive account-summary and security-operation layouts.
+
+### Verification
+
+- Service coverage for one-time administrator reauthentication, last-administrator protection, role/session invalidation, suspend/reactivate, and complete re-enrollment invalidation.
+- Browser-flow coverage for account status rendering, confirmation UI, administrator reauthentication, and one-time recovery-code replacement output.
+- No database migration was needed; the increment uses the existing membership, role, credential, recovery-code, session, and audit schemas.
+
+### Parked design direction
+
+- Added [`LLM-MODULE-GENERATOR-ROADMAP.md`](LLM-MODULE-GENERATOR-ROADMAP.md).
+- The future generator is optional and disabled by default. It will assemble architecture/design/schema context from source, generate only into an isolated workspace, run migrations and tests, show a reviewable diff, and require explicit human approval before export or merge.
+- No LLM provider, runtime code generation, external upload, or production self-modification was added in this increment.

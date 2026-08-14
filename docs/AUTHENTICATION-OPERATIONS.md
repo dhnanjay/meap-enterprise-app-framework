@@ -1,9 +1,9 @@
 # MEAP Local Authentication Operations
 
-**Status:** Release 1 implemented  
-**Admission:** administrator-created, invite-only  
-**Identity assurance:** administrator asserted  
-**Credential:** TOTP or a single-use recovery code  
+**Status:** Local authentication and professional account administration implemented
+**Admission:** administrator-created, invite-only
+**Identity assurance:** administrator asserted
+**Credential:** TOTP or a single-use recovery code
 **External services required:** none
 
 MEAP's built-in authentication is intended for controlled deployments where an application administrator knows who should receive access. An email address is an account identifier and contact label; MEAP does not claim that the mailbox or employment status has been verified.
@@ -13,7 +13,9 @@ MEAP's built-in authentication is intended for controlled deployments where an a
 - There is no public registration or automatic domain admission.
 - Only an administrator can create a membership and enrollment link.
 - `MEAP_ALLOWED_EMAIL_DOMAINS` can restrict which domains administrators may enter; this is a restriction, not mailbox verification.
-- Suspending a membership revokes its active sessions immediately.
+- Sensitive administrator actions require a fresh authenticator or recovery code on a dedicated confirmation screen.
+- Suspending a membership and changing a role revoke active sessions immediately.
+- The last active workspace administrator cannot be demoted, suspended, or reset for re-enrollment.
 - Local TOTP credentials are stored separately from future OIDC identities.
 - TOTP seeds use AES-GCM encryption with a versioned credential key.
 - Enrollment and session tokens are stored as keyed HMAC values, never as bearer-token plaintext.
@@ -55,10 +57,11 @@ This works only while the database bootstrap is incomplete. It invalidates the p
 
 1. Sign in as an administrator.
 2. Open **Users** in the top bar.
-3. Enter the email, display name, and role.
-4. Copy the enrollment URL shown once and transfer it through a channel where you can identify the recipient.
-5. The user scans the QR code and confirms a six-digit code.
-6. The user saves the ten recovery codes shown once.
+3. Enter the email, display name, role, and your current administrator authentication code.
+4. Confirm that you are asserting the user's identity and assigning access.
+5. Copy the enrollment URL shown once and transfer it through a channel where you can identify the recipient.
+6. The user scans the QR code and confirms a six-digit code.
+7. The user saves the ten recovery codes shown once.
 
 The administrator can then use **Application visibility and access** on the same page to enable or disable each registered application for that user. The setting changes both navigation visibility and direct route authorization. See [`ACCESS-CONTROL.md`](ACCESS-CONTROL.md).
 
@@ -96,7 +99,7 @@ MEAP_TOKEN_HMAC_KEY=<independent random value>
 
 `MEAP_CREDENTIAL_ENCRYPTION_KEY` remains a single-key local-development fallback. Production should use the JSON keyring so an old key can remain available for decryption while new credentials are written with the active key ID. Production startup refuses the committed local development keys. Store production values in the VM or deployment secret store, not in Git.
 
-`MEAP_ADMISSION_MODE=disabled` means no new enrollment may be issued by bootstrap or administrator invitation. Existing memberships and sessions are unaffected.
+`MEAP_ADMISSION_MODE=disabled` means no new membership may be issued by bootstrap or administrator invitation. Existing memberships and sessions are unaffected, and an administrator may still reset the credential of an existing membership.
 
 ## 5. Database and migrations
 
@@ -109,7 +112,25 @@ meap db upgrade
 
 The application refuses to start against a stale schema and reports revision state through `/developer/health`. SQLite remains the zero-configuration default; PostgreSQL is selected through `MEAP_DATABASE_URL`. Read [`DATABASE-OPERATIONS.md`](DATABASE-OPERATIONS.md) before deployment.
 
-## 6. Lost device and offboarding
+## 6. Account administration and recovery
+
+Open **Users**, then choose **Manage** for an account. The account page shows membership and credential status, active-session count, last sign-in, last activity, authenticator enrollment time, and unused recovery-code count.
+
+The available operations are:
+
+- Change the generic workspace role. Existing sessions are revoked so the new authorization is used immediately.
+- Suspend an active membership. Sign-in is blocked and every session is revoked.
+- Reactivate a suspended membership. The existing authenticator remains usable.
+- Revoke all active sessions without changing the credential.
+- Reset and re-enroll the authenticator. TOTP, recovery codes, and sessions are invalidated; a new 15-minute enrollment link is displayed once.
+- Replace recovery codes. Existing codes are invalidated and ten replacements are displayed once.
+- Enable or disable a registered application. The access matrix discovers entries from the navigation registry and the confirmation changes both link visibility and direct-route authorization.
+
+Each operation has a review page, requires an explicit confirmation, requires the acting administrator's fresh TOTP or recovery code, and writes an audit event. A TOTP time step cannot be replayed: if the administrator used the current six-digit code to sign in, wait for it to change before confirming an operation.
+
+MEAP prevents the last active workspace administrator from being demoted, suspended, or reset for re-enrollment. Create and enroll a second workspace administrator before performing one of those operations on the first.
+
+### Lost device and offboarding
 
 - A recovery code can be entered in the ordinary authentication-code field. Each code succeeds once.
 - If recovery codes are exposed, replace them from the trusted application host. This immediately invalidates every previous recovery code:
@@ -119,9 +140,9 @@ python -m app.platform.auth.cli regenerate-recovery-codes \
   --email user@example.com
 ```
 
-- If the device and recovery codes are both lost, an administrator must issue a new enrollment in a future recovery-management increment. Never reveal the old seed.
-- To offboard a user now, choose **Suspend**. This changes the membership state and revokes its active sessions.
-- Administrators cannot suspend their own active membership through the UI.
+- If the device and recovery codes are both lost, an administrator uses **Reset and re-enroll authenticator**. The old seed is never revealed.
+- To offboard a user, choose **Suspend account**.
+- An administrator cannot suspend their own account from their current session. Another administrator must perform that operation.
 
 ## 7. Future OIDC integration
 

@@ -3,6 +3,7 @@
 <section class="auth-panel auth-panel--wide auth-stack" aria-labelledby="users-title">
   <div class="auth-actions"><div><div class="meap-overline">Administration</div><h1 id="users-title">Users and memberships</h1></div><a class="meap-btn meap-btn--quiet" href="/">Back to workspace</a></div>
   {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
+  {% if message %}<div class="auth-success">{{ message }}</div>{% endif %}
   {% if invite_url %}<div class="auth-notice"><strong>Enrollment link—copy it now:</strong><br>{{ invite_url }}</div>{% endif %}
   <form class="auth-stack" action="/auth/admin/users/invite" method="post">
     <input type="hidden" name="csrf_token" value="{{ current_user.csrf_token }}">
@@ -10,10 +11,12 @@
     <label class="auth-field">Email address<input type="email" name="email" required></label>
     <label class="auth-field">Display name<input type="text" name="display_name" required></label>
     <label class="auth-field">Role<select name="role"><option value="operator">Operator</option><option value="analyst">Analyst</option><option value="auditor">Auditor</option><option value="viewer">Viewer</option><option value="workspace_admin">Workspace administrator</option></select></label>
+    <label class="auth-field">Your current authenticator or recovery code<input type="text" name="admin_code" inputmode="numeric" autocomplete="one-time-code" required></label>
+    <label class="auth-confirm"><input type="checkbox" name="confirmation" value="confirmed" required><span>I confirm that I am asserting this user's identity and assigning workspace access.</span></label>
     <button class="meap-btn meap-btn--primary" type="submit">Create enrollment link</button>
   </form>
   <div class="meap-table-wrapper"><table class="meap-table"><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Action</th></tr></thead><tbody>
-    {% for membership in memberships %}<tr><td>{{ membership.user.display_name }}<br><span class="meap-text-muted">{{ membership.user.email }} · admin asserted</span></td><td>{{ membership.role }}</td><td>{{ membership.status }}</td><td>{% if membership.status == 'active' and membership.user_id != current_user.user_id %}<form action="/auth/admin/users/{{ membership.membership_id }}/suspend" method="post"><input type="hidden" name="csrf_token" value="{{ current_user.csrf_token }}"><button class="meap-btn meap-btn--quiet" type="submit">Suspend</button></form>{% else %}—{% endif %}</td></tr>{% endfor %}
+    {% for membership in memberships %}<tr><td>{{ membership.user.display_name }}<br><span class="meap-text-muted">{{ membership.user.email }} · admin asserted</span></td><td>{{ role_definitions.get(membership.role, {}).get('display_name', membership.role) }}</td><td>{{ membership.status }}</td><td><a class="meap-btn meap-btn--quiet" href="/auth/admin/users/{{ membership.membership_id }}">Manage</a></td></tr>{% endfor %}
   </tbody></table></div>
   <div>
     <div class="meap-overline">Navigation access</div>
@@ -24,8 +27,7 @@
     {% for membership in memberships %}
     <tr><td>{{ membership.user.display_name }}<br><span class="meap-text-muted">{{ membership.role }}</span></td>
       {% for item in navigation_items %}{% set permission = item.required_permission %}{% set has_access = permission in membership_permissions[membership.membership_id] %}<td>
-        <form action="/auth/admin/users/{{ membership.membership_id }}/navigation-access" method="post">
-          <input type="hidden" name="csrf_token" value="{{ current_user.csrf_token }}">
+        <form action="/auth/admin/users/{{ membership.membership_id }}/confirm/navigation-access" method="get">
           <input type="hidden" name="permission" value="{{ permission }}">
           <input type="hidden" name="enabled" value="{{ 'false' if has_access else 'true' }}">
           <button class="meap-btn meap-btn--quiet" type="submit" aria-label="{{ 'Disable' if has_access else 'Enable' }} {{ item.label }} for {{ membership.user.display_name }}">{{ 'Enabled' if has_access else 'Disabled' }}</button>
