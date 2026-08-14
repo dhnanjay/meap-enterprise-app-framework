@@ -490,6 +490,32 @@ def test_admin_account_panel_requires_reauthentication_for_recovery_rotation(
         assert "Users and memberships" in users.text
         assert "Manage" in users.text
 
+        access_confirmation = client.get(
+            f"/auth/admin/users/{membership_id}/confirm/navigation-access",
+            params={
+                "permission": "bank_reconciliation.reconciliation.view",
+                "enabled": "false",
+            },
+        )
+        assert access_confirmation.status_code == 200
+        assert "Confirm application-access change" in access_confirmation.text
+        access_csrf = re.search(
+            r'name="csrf_token" value="([^"]+)"', access_confirmation.text
+        ).group(1)
+        disabled = client.post(
+            f"/auth/admin/users/{membership_id}/confirm/navigation-access",
+            data={
+                "csrf_token": access_csrf,
+                "admin_code": recovery_codes[1],
+                "confirmation": "confirmed",
+                "permission": "bank_reconciliation.reconciliation.view",
+                "enabled": "false",
+            },
+            follow_redirects=False,
+        )
+        assert disabled.status_code == 303
+        assert client.get("/bank-recon").status_code == 403
+
         detail = client.get(f"/auth/admin/users/{membership_id}")
         assert detail.status_code == 200
         assert "Access and credential operations" in detail.text
@@ -507,7 +533,7 @@ def test_admin_account_panel_requires_reauthentication_for_recovery_rotation(
             f"/auth/admin/users/{membership_id}/confirm/recovery-codes",
             data={
                 "csrf_token": session_csrf,
-                "admin_code": recovery_codes[1],
+                "admin_code": recovery_codes[2],
                 "confirmation": "confirmed",
             },
         )

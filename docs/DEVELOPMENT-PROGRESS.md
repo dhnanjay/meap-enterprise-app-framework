@@ -212,3 +212,10 @@ Extended the dynamic Users access matrix into a complete, self-hosted account-op
 - Added [`LLM-MODULE-GENERATOR-ROADMAP.md`](LLM-MODULE-GENERATOR-ROADMAP.md).
 - The future generator is optional and disabled by default. It will assemble architecture/design/schema context from source, generate only into an isolated workspace, run migrations and tests, show a reviewable diff, and require explicit human approval before export or merge.
 - No LLM provider, runtime code generation, external upload, or production self-modification was added in this increment.
+
+## 2026-08-13 — Application-access confirmation correction
+
+- Reproduced `ERR-UNEXPECTED` when an administrator selected Enabled/Disabled in the Users access matrix.
+- Corrected both confirmation-route lookups to consume the navigation registry's documented dictionary contract rather than treating entries as objects.
+- Added end-to-end regression coverage for opening the access confirmation screen, reauthenticating the administrator, disabling the application, receiving a successful redirect, and receiving `403` on the disabled direct route.
+- No database or persisted access records required repair; the failure occurred before the change was submitted.

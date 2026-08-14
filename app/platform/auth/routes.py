@@ -452,7 +452,7 @@ def confirm_admin_action(
             (
                 item
                 for item in request.app.state.registry.get_configurable_navigation()
-                if item.required_permission == permission
+                if item.get("required_permission") == permission
             ),
             None,
         )
@@ -502,7 +502,7 @@ def perform_admin_action(
             (
                 item
                 for item in request.app.state.registry.get_configurable_navigation()
-                if item.required_permission == permission
+                if item.get("required_permission") == permission
             ),
             None,
         )
