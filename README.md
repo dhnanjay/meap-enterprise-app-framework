@@ -555,4 +555,8 @@ JupyterHub are deferred.
 
 ## License
 
-This is a starter pack. Adapt freely for your enterprise applications.
+MEAP is free software licensed under the [GNU Affero General Public License, version 3 only](LICENSE) (`AGPL-3.0-only`).
+
+You may use, study, modify, and redistribute it under that license. If you modify MEAP and make that modified version available for users to interact with over a network, section 13 requires you to offer those users the corresponding source code of your running version.
+
+The source for this version is available at [github.com/dhnanjay/meap-enterprise-app-framework](https://github.com/dhnanjay/meap-enterprise-app-framework).

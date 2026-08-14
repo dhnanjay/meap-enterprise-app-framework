@@ -330,3 +330,22 @@ Added a root-level [`AGENTS.md`](../AGENTS.md) as the normative, automatically d
 - Confirmed every local document referenced by the agent contract exists; full suite: 161 passed.
 - This is a documentation-only increment; no runtime behavior or database schema changed.
 - No repository state has been published.
+
+## 2026-08-13 — AGPL-3.0-only licensing
+
+### Outcome
+
+Licensed MEAP under the GNU Affero General Public License, version 3 only (`AGPL-3.0-only`).
+
+### Added and clarified
+
+- Added the unmodified official GNU AGPL version 3 text as the root `LICENSE` file.
+- Declared the SPDX license expression and packaged license file in `pyproject.toml` using PEP 639 metadata; raised the setuptools build requirement to the version family that supports that metadata.
+- Added the public source repository URL to package metadata and replaced the README's ambiguous “adapt freely” sentence with the actual license and network-source obligation.
+- Extended the coding-agent contract so future agents preserve the license, check incoming dependency/code compatibility, and do not treat the original repository as the Corresponding Source for a separately modified deployed version.
+
+### Scope
+
+- No application behavior or database schema changed.
+- Verified the root license is byte-for-byte identical to GNU's official AGPL-3.0 text, the package metadata parses and builds into a wheel, and the full suite passes: 161 tests.
+- No repository state was published during this increment.

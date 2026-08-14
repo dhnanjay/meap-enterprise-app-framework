@@ -1,11 +1,13 @@
 [build-system]
-requires = ["setuptools>=68.0"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "meap"
 version = "1.0.0"
 description = "Modular Enterprise Application Platform - a server-first, configuration-assembled starter platform"
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",
@@ -26,6 +28,9 @@ dependencies = [
 
 [project.scripts]
 meap = "app.cli:main"
+
+[project.urls]
+Source = "https://github.com/dhnanjay/meap-enterprise-app-framework"
 
 [project.optional-dependencies]
 dev = [

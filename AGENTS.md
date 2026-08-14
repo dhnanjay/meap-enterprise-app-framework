@@ -333,6 +333,14 @@ A CSV is an artifact. “Rows 12–18 support exception X” is evidence. “Use
 - A notebook installed in the same Python environment is still an independent code-execution surface.
 - Never add an iframe or subprocess launcher as a “small” change. First implement the isolation, authorization, origin/proxy, filesystem, process ownership, token, network, audit, and lifecycle model in `docs/NOTEBOOK-SECURITY-MODEL.md`.
 
+### 8.10 License and source availability
+
+- MEAP is licensed `AGPL-3.0-only`. Preserve the complete `LICENSE` file and the SPDX package metadata.
+- Do not relicense, dual-license, add a license exception, or remove notices without the copyright holder's explicit authorization.
+- Before adding or copying a dependency, asset, generated component, or code fragment, verify that its license is compatible with distribution of the combined work under AGPL-3.0-only and preserve required attribution/source notices.
+- A modified version offered for remote network interaction must provide those users a clear opportunity to obtain its Corresponding Source as required by AGPL section 13.
+- Do not claim that publishing the original repository alone satisfies the source obligation for a separately modified deployed version. The source offer must correspond to the version actually running.
+
 ## 9. Current database schema map
 
 This map is orientation, not a substitute for reading the live model and Alembic history. Before changing a table, inspect its model, relationships, indexes, every migration that touches it, and all repositories that query it.
@@ -712,6 +720,7 @@ Do not:
 - make a broad refactor while fixing a narrow defect;
 - delete business data because a module is being hidden;
 - create a GitHub repository, push, publish, upload, deploy, or open a PR without explicit permission.
+- remove, weaken, or misstate the AGPL-3.0-only license or its network-source obligation.
 
 ## 21. Surgical work protocol for an agent
 
