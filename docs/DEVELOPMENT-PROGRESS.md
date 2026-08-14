@@ -229,3 +229,10 @@ Extended the dynamic Users access matrix into a complete, self-hosted account-op
 - Retained personal recovery-code replacement and renamed the status to **Unused backup sign-in codes**, with an explanation that each code works once.
 - Replaced raw microsecond timestamps with concise UTC display values.
 - Expanded tests for the verification window, immediate access toggle, direct-route denial, self-action protections, clarified UI, and code-free follow-up operations inside the window.
+
+## 2026-08-13 — Developer diagnostics visibility hardening
+
+- Added an explicit workspace-administrator role condition around both Developer entry points in the top bar and side navigation, in addition to the existing server-computed visibility flag.
+- Confirmed `/developer` and `/developer/api/modules` fail closed with `403` for authenticated non-administrators.
+- Added authenticated operator regression coverage proving the Developer link and icon are absent while workspace administrators retain visibility and access.
+- Kept `/developer/health` unauthenticated as the narrow deployment-readiness probe; it exposes health/revision state, not the diagnostics interface or route/module inventory.

@@ -73,7 +73,7 @@
         <span class="meap-environment-dot" aria-hidden="true"></span>
         {{ settings.profile if settings else 'local' }}
       </span>
-      {% if developer_area_enabled %}
+      {% if developer_area_enabled and current_user and (current_user.role in ['admin', 'workspace_admin'] or 'workspace_admin' in current_user.roles) %}
       <a href="/developer" class="meap-icon-btn" aria-label="Developer diagnostics" title="Developer diagnostics"
          hx-get="/developer" hx-target="#main-content" hx-push-url="true">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -108,7 +108,7 @@
       </div>
       {% endfor %}
 
-      {% if developer_area_enabled %}
+      {% if developer_area_enabled and current_user and (current_user.role in ['admin', 'workspace_admin'] or 'workspace_admin' in current_user.roles) %}
       <div class="meap-nav-group">
         <div class="meap-nav-group-title">Platform</div>
         <a href="/developer"

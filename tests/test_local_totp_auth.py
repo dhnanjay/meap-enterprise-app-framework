@@ -496,6 +496,46 @@ def test_navigation_deny_hides_link_and_blocks_direct_route(
         assert direct.status_code == 403
 
 
+def test_developer_diagnostics_are_hidden_and_denied_for_non_admin(
+    db_engine, db_session, auth_settings, monkeypatch
+):
+    import app.main as main_module
+    import app.platform.database.base as db_base
+
+    service, administrator, _admin_secret, _admin_codes = bootstrap_and_enroll(
+        db_session, auth_settings
+    )
+    operator, _secret, recovery_codes = invite_and_enroll(
+        service, administrator, email="operator@company.com", role="operator"
+    )
+    monkeypatch.setattr(main_module, "get_settings", lambda: auth_settings)
+    monkeypatch.setattr(db_base, "make_engine", lambda url=None: db_engine)
+    db_session.close()
+    app = main_module.create_app()
+    with TestClient(app) as client:
+        login_page = client.get("/auth/login")
+        csrf = re.search(r'name="csrf_token" value="([^"]+)"', login_page.text).group(1)
+        signed_in = client.post(
+            "/auth/login",
+            data={
+                "csrf_token": csrf,
+                "email": operator.user.email,
+                "code": recovery_codes[0],
+                "next": "/",
+            },
+            follow_redirects=False,
+        )
+        assert signed_in.status_code == 303
+
+        workspace = client.get("/")
+        assert workspace.status_code == 200
+        assert 'href="/developer"' not in workspace.text
+        assert "Developer diagnostics" not in workspace.text
+        assert client.get("/developer").status_code == 403
+        assert client.get("/developer/api/modules").status_code == 403
+        assert client.get("/developer/health").status_code == 200
+
+
 def test_admin_account_panel_requires_reauthentication_for_recovery_rotation(
     db_engine, db_session, auth_settings, monkeypatch
 ):
@@ -529,6 +569,9 @@ def test_admin_account_panel_requires_reauthentication_for_recovery_rotation(
         assert users.status_code == 200
         assert "Users and memberships" in users.text
         assert "Manage" in users.text
+        workspace = client.get("/")
+        assert 'href="/developer"' in workspace.text
+        assert client.get("/developer").status_code == 200
 
         disabled = client.post(
             f"/auth/admin/users/{membership_id}/navigation-access",
