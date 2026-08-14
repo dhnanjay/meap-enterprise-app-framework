@@ -16,6 +16,25 @@ from app.platform.errors.taxonomy import AuthorizationError
 from app.settings import get_settings
 
 
+def require_workspace_admin(
+    request: Request,
+    user: UserContext = Depends(get_current_user),
+) -> UserContext:
+    """Require the effective workspace-administrator role."""
+    if "workspace_admin" not in user.roles and user.role not in {
+        "admin",
+        "workspace_admin",
+    }:
+        raise AuthorizationError(
+            module="platform",
+            operation="workspace_administration",
+            reason_code="PERMISSION_DENIED",
+            safe_message="Workspace administrator access is required",
+            correlation_id=getattr(request.state, "correlation_id", None),
+        )
+    return user
+
+
 def require_permission(permission: str):
     """FastAPI dependency factory: enforce a permission server-side.
 

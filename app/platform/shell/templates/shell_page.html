@@ -20,6 +20,7 @@
 </head>
 
 <body class="meap-shell" data-density="compact"{% if csrf_token %} hx-headers='{"X-CSRF-Token":"{{ csrf_token }}"}'{% endif %}>
+  {% set is_workspace_admin = current_user and (current_user.role in ['admin', 'workspace_admin'] or 'workspace_admin' in current_user.roles) %}
   <a class="meap-skip-link" href="#main-content">Skip to main content</a>
   {# ── Top Bar (Section 11) ─────────────────────────────────────────────── #}
   <header class="meap-topbar">
@@ -56,7 +57,7 @@
 
     <div class="meap-topbar-right">
       {% if current_user %}
-      {% if current_user.role in ['admin', 'workspace_admin'] or 'workspace_admin' in current_user.roles %}
+      {% if is_workspace_admin %}
       <a href="/auth/admin/users" class="meap-btn meap-btn--quiet">Users</a>
       {% endif %}
       <span class="meap-environment">{{ current_user.display_name }}</span>
@@ -73,7 +74,7 @@
         <span class="meap-environment-dot" aria-hidden="true"></span>
         {{ settings.profile if settings else 'local' }}
       </span>
-      {% if developer_area_enabled and current_user and (current_user.role in ['admin', 'workspace_admin'] or 'workspace_admin' in current_user.roles) %}
+      {% if developer_area_enabled and is_workspace_admin %}
       <a href="/developer" class="meap-icon-btn" aria-label="Developer diagnostics" title="Developer diagnostics"
          hx-get="/developer" hx-target="#main-content" hx-push-url="true">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -108,15 +109,23 @@
       </div>
       {% endfor %}
 
-      {% if developer_area_enabled and current_user and (current_user.role in ['admin', 'workspace_admin'] or 'workspace_admin' in current_user.roles) %}
+      {% if is_workspace_admin %}
       <div class="meap-nav-group">
         <div class="meap-nav-group-title">Platform</div>
+        <a href="/audit"
+           class="meap-nav-item{% if current_path.startswith('/audit') %} meap-nav-item--active{% endif %}"
+           hx-get="/audit" hx-target="#main-content" hx-push-url="true"
+           {% if current_path.startswith('/audit') %}aria-current="page"{% endif %}>
+          <span class="meap-nav-text">Audit</span>
+        </a>
+        {% if developer_area_enabled %}
         <a href="/developer"
            class="meap-nav-item{% if '/developer' in current_path %} meap-nav-item--active{% endif %}"
            hx-get="/developer" hx-target="#main-content" hx-push-url="true"
            {% if '/developer' in current_path %}aria-current="page"{% endif %}>
           <span class="meap-nav-text">Developer</span>
         </a>
+        {% endif %}
       </div>
       {% endif %}
     </nav>

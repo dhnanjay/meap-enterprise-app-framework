@@ -24,6 +24,7 @@ from app.modules.journal_entry_review.module import MODULE as JournalEntryReview
 from app.platform.database import base as db_base
 from app.platform.database import models as _platform_models  # noqa: F401
 from app.platform.audit import models as _audit_models  # noqa: F401
+from app.platform.audit.routes import router as audit_router
 from app.platform.notebooks import models as _notebook_models  # noqa: F401
 from app.platform.auth import models as _auth_models  # noqa: F401
 from app.platform.auth.routes import router as auth_router
@@ -149,6 +150,8 @@ def create_app() -> FastAPI:
 
     # Authentication is platform infrastructure, not a business module.
     app.include_router(auth_router)
+    # Audit evidence is a separate administrator-only platform surface.
+    app.include_router(audit_router)
 
     # --- Static files (Section 22) ---
     static_dir = Path(__file__).parent / "platform" / "static"

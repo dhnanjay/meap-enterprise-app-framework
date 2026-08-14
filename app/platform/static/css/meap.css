@@ -234,6 +234,8 @@ code { padding: 2px 5px; border-radius: var(--meap-radius-sm); background: var(-
 .meap-table th a.active { color: var(--meap-accent); }
 .meap-col--num { text-align: right !important; }
 .meap-col--fit { width: 1%; white-space: nowrap; }
+.meap-nowrap { white-space: nowrap; }
+.meap-audit-table { min-width: 1120px; }
 .sort-icon { color: var(--meap-accent); }
 .meap-pagination { display: flex; align-items: center; justify-content: space-between; gap: var(--meap-space-3); padding: var(--meap-space-2) var(--meap-space-4); border-top: 1px solid var(--meap-border); color: var(--meap-text-secondary); font-size: var(--meap-size-sm); }
 .meap-pagination-controls { display: flex; gap: var(--meap-space-2); }
@@ -257,6 +259,7 @@ code { padding: 2px 5px; border-radius: var(--meap-radius-sm); background: var(-
 .meap-config-value { overflow-wrap: anywhere; font-size: var(--meap-size-xs); }
 .meap-permissions { display: flex; flex-wrap: wrap; gap: var(--meap-space-2); }
 .meap-permission { padding: 4px 6px; border: 1px solid var(--meap-border); border-radius: var(--meap-radius-sm); background: var(--meap-surface); font-size: var(--meap-size-xs); }
+.meap-json { max-height: 32rem; overflow: auto; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--meap-text); font: var(--meap-size-xs)/1.55 var(--meap-font-mono); }
 
 /* Jobs and errors */
 .meap-job-status { display: flex; align-items: center; flex-wrap: wrap; gap: var(--meap-space-2); padding: var(--meap-space-3) var(--meap-space-4); border: 1px solid var(--meap-border); border-left-width: 3px; border-radius: var(--meap-radius-md); background: var(--meap-surface); }

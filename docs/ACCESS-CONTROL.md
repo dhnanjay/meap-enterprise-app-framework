@@ -17,7 +17,7 @@ A change applies on the user's next request. Disabling an application does two t
 1. Removes its link from the sidebar, dashboard, and application search.
 2. Rejects a direct request to that application's protected routes with `403 Forbidden`.
 
-The dashboard itself remains the authenticated workspace home. The Users and Developer areas are restricted to workspace administrators and are not ordinary business-application links.
+The dashboard itself remains the authenticated workspace home. Users, Audit, and Developer are restricted workspace-administration capabilities and are not ordinary business-application links. Audit is deliberately a separate panel from Users so account administration stays focused while event history can use a dense list-report layout.
 
 ## Generic starting roles
 

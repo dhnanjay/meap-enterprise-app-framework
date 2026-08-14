@@ -12,6 +12,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.platform.audit.models import AuditEvent
+from app.platform.audit.query import AuditFilters, AuditQueryService
+from app.platform.audit.service import AuditService
 from app.platform.auth.models import AuthSession, Credential, EnrollmentToken, RecoveryCode
 from app.platform.auth.service import AuthService
 from app.settings import Settings
@@ -530,10 +532,117 @@ def test_developer_diagnostics_are_hidden_and_denied_for_non_admin(
         workspace = client.get("/")
         assert workspace.status_code == 200
         assert 'href="/developer"' not in workspace.text
+        assert 'href="/audit"' not in workspace.text
         assert "Developer diagnostics" not in workspace.text
         assert client.get("/developer").status_code == 403
         assert client.get("/developer/api/modules").status_code == 403
         assert client.get("/developer/health").status_code == 200
+        assert client.get("/audit").status_code == 403
+
+
+def test_audit_query_is_workspace_scoped_and_filterable(db_session, auth_settings):
+    _service, administrator, _secret, _codes = bootstrap_and_enroll(
+        db_session, auth_settings
+    )
+    audit = AuditService(db_session)
+    visible = audit.record(
+        event_type="test.audit.visible",
+        organization_id=administrator.organization_id,
+        actor_user_id=administrator.user_id,
+        entity_type="work_item",
+        entity_id="VISIBLE-001",
+        correlation_id="CORR-AUDIT-VISIBLE",
+        event_data={"changed": "status"},
+    )
+    audit.record(
+        event_type="test.audit.foreign",
+        organization_id="different-workspace",
+        actor_user_id=administrator.user_id,
+        entity_id="FOREIGN-001",
+        correlation_id="CORR-AUDIT-FOREIGN",
+    )
+
+    query = AuditQueryService(db_session, administrator.organization_id)
+    result = query.list_events(AuditFilters(q="VISIBLE-001", page_size=25))
+
+    assert result.total_count == 1
+    assert result.items[0].event.event_id == visible.event_id
+    assert result.items[0].actor_email == "alice@company.com"
+    assert query.get_event(visible.event_id) is not None
+    foreign_id = db_session.scalar(
+        select(AuditEvent.event_id).where(
+            AuditEvent.correlation_id == "CORR-AUDIT-FOREIGN"
+        )
+    )
+    assert query.get_event(foreign_id) is None
+
+
+def test_audit_center_is_a_separate_admin_only_workspace_panel(
+    db_engine, db_session, auth_settings, monkeypatch
+):
+    import app.main as main_module
+    import app.platform.database.base as db_base
+
+    _service, administrator, _secret, recovery_codes = bootstrap_and_enroll(
+        db_session, auth_settings
+    )
+    audit = AuditService(db_session)
+    visible = audit.record(
+        event_type="test.audit.center.visible",
+        organization_id=administrator.organization_id,
+        actor_user_id=administrator.user_id,
+        entity_type="work_item",
+        entity_id="VISIBLE-CENTER-001",
+        correlation_id="CORR-CENTER-VISIBLE",
+        event_data={"source": "test"},
+    )
+    foreign = audit.record(
+        event_type="test.audit.center.foreign",
+        organization_id="different-workspace",
+        actor_user_id=administrator.user_id,
+        entity_id="FOREIGN-CENTER-001",
+        correlation_id="CORR-CENTER-FOREIGN",
+    )
+    monkeypatch.setattr(main_module, "get_settings", lambda: auth_settings)
+    monkeypatch.setattr(db_base, "make_engine", lambda url=None: db_engine)
+    db_session.close()
+    app = main_module.create_app()
+
+    with TestClient(app) as client:
+        login_page = client.get("/auth/login")
+        csrf = re.search(
+            r'name="csrf_token" value="([^"]+)"', login_page.text
+        ).group(1)
+        signed_in = client.post(
+            "/auth/login",
+            data={
+                "csrf_token": csrf,
+                "email": "alice@company.com",
+                "code": recovery_codes[0],
+                "next": "/audit",
+            },
+            follow_redirects=False,
+        )
+        assert signed_in.status_code == 303
+
+        workspace = client.get("/")
+        assert 'href="/audit"' in workspace.text
+        audit_page = client.get("/audit")
+        assert audit_page.status_code == 200
+        assert "Audit center" in audit_page.text
+        assert "test.audit.center.visible" in audit_page.text
+        assert "test.audit.center.foreign" not in audit_page.text
+
+        filtered = client.get("/audit", params={"q": "CORR-CENTER-VISIBLE"})
+        assert filtered.status_code == 200
+        assert "VISIBLE-CENTER-001" in filtered.text
+        assert "CORR-CENTER-FOREIGN" not in filtered.text
+
+        detail = client.get(f"/audit/{visible.event_id}")
+        assert detail.status_code == 200
+        assert "source" in detail.text
+        assert "test" in detail.text
+        assert client.get(f"/audit/{foreign.event_id}").status_code == 404
 
 
 def test_admin_account_panel_requires_reauthentication_for_recovery_rotation(
@@ -571,6 +680,7 @@ def test_admin_account_panel_requires_reauthentication_for_recovery_rotation(
         assert "Manage" in users.text
         workspace = client.get("/")
         assert 'href="/developer"' in workspace.text
+        assert 'href="/audit"' in workspace.text
         assert client.get("/developer").status_code == 200
 
         disabled = client.post(

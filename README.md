@@ -51,6 +51,8 @@ Read [`docs/DEVELOPER-CUSTOMIZATION-GUIDE.md`](docs/DEVELOPER-CUSTOMIZATION-GUID
 
 Read [`docs/ACCESS-CONTROL.md`](docs/ACCESS-CONTROL.md) for the generic role model, the administrator access matrix, per-user overrides, and the workspace data-ownership contract.
 
+Read [`docs/AUDIT-CENTER.md`](docs/AUDIT-CENTER.md) for the separate administrator audit panel, workspace-isolation contract, supported filters, and event-data safety rules.
+
 Read [`docs/DATABASE-OPERATIONS.md`](docs/DATABASE-OPERATIONS.md) for revision status, automatic SQLite backups, safe upgrades, legacy local databases, rollback, health checks, and PostgreSQL deployment preparation.
 
 Read [`docs/LLM-MODULE-GENERATOR-ROADMAP.md`](docs/LLM-MODULE-GENERATOR-ROADMAP.md) for the parked, optional module-generator design. It describes a future review-gated workflow; no runtime code generation or LLM dependency is enabled today.

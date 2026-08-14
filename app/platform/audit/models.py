@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, DateTime, String
+from sqlalchemy import JSON, DateTime, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.platform.database.base import Base
@@ -28,6 +28,13 @@ class AuditEvent(Base):
     """Append-only record of a security- or business-significant event."""
 
     __tablename__ = "platform_audit_events"
+    __table_args__ = (
+        Index(
+            "ix_platform_audit_events_org_occurred",
+            "organization_id",
+            "occurred_at",
+        ),
+    )
 
     event_id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=_uuid_str

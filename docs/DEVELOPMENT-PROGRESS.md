@@ -236,3 +236,37 @@ Extended the dynamic Users access matrix into a complete, self-hosted account-op
 - Confirmed `/developer` and `/developer/api/modules` fail closed with `403` for authenticated non-administrators.
 - Added authenticated operator regression coverage proving the Developer link and icon are absent while workspace administrators retain visibility and access.
 - Kept `/developer/health` unauthenticated as the narrow deployment-readiness probe; it exposes health/revision state, not the diagnostics interface or route/module inventory.
+
+## 2026-08-13 — Separate administrator Audit Center
+
+### Outcome
+
+Added Audit as a dedicated, data-dense Platform panel rather than expanding the Users screen with an unrelated event history.
+
+### Added
+
+- Administrator-only `/audit` list report and `/audit/{event_id}` object page.
+- Newest-first pagination with 25, 50, and 100-row options.
+- Search across event type, correlation ID, entity identifier, actor name, and actor email.
+- Exact event-type, outcome, actor, and inclusive date-range filters.
+- Actor, entity, correlation, reproducibility, artifact, and structured event-data detail.
+- Strict organization scoping in every audit list, count, filter facet, search, and detail query.
+- Composite `(organization_id, occurred_at)` timeline index through Alembic revision `cc34e1a6f942`.
+- [`AUDIT-CENTER.md`](AUDIT-CENTER.md) as the developer and operator contract.
+
+### Security and UX boundaries
+
+- Audit is visible only to workspace administrators and is enforced at the route as well as the navigation.
+- A foreign-workspace event identifier returns not found.
+- The panel is read-only and exposes no update or delete route.
+- Export, retention controls, and cryptographic tamper evidence remain future increments.
+
+### Verification
+
+- Query coverage proves workspace isolation, actor resolution, search, and foreign-detail rejection.
+- Authenticated browser-flow coverage proves administrator visibility, separate page rendering, filtering, detail rendering, and non-administrator `403` enforcement.
+- Full suite: 157 passed.
+- Alembic autogenerate check reports no schema drift.
+- Local `meap.db` was backed up as `meap.before-upgrade-20260814-022015.db`, upgraded to `cc34e1a6f942`, and confirmed current.
+- Browser-level layout inspection confirmed the filter bar wraps without document overflow, the side navigation becomes an overlay below 960px, and the dense table scrolls inside its own container at 800px and 600px viewports.
+- No repository state was published during this increment.

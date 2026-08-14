@@ -1,0 +1,87 @@
+<div class="meap-page meap-list-report" id="audit-list">
+  <div class="meap-page-header">
+    <div>
+      <div class="meap-eyebrow">Platform administration</div>
+      <h1 class="meap-page-title">Audit center</h1>
+      <p class="meap-page-subtitle">Workspace-scoped security, access, and operational evidence.</p>
+    </div>
+    <div class="meap-page-actions">
+      <span class="meap-heading-count">{{ result.total_count }} events</span>
+    </div>
+  </div>
+
+  <form method="get" action="/audit" class="meap-filter-bar"
+        hx-get="/audit" hx-target="#main-content" hx-push-url="true">
+    <div class="meap-filter-item meap-filter-item--grow">
+      <label for="audit-search">Search</label>
+      <input class="meap-input" id="audit-search" type="search" name="q" value="{{ filters.q or '' }}" placeholder="Event, correlation ID, entity, or user">
+    </div>
+    <div class="meap-filter-item">
+      <label for="audit-type">Event type</label>
+      <select class="meap-select" id="audit-type" name="event_type">
+        <option value="">All event types</option>
+        {% for value in result.event_types %}<option value="{{ value }}"{% if filters.event_type == value %} selected{% endif %}>{{ value }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="meap-filter-item">
+      <label for="audit-outcome">Outcome</label>
+      <select class="meap-select" id="audit-outcome" name="outcome">
+        <option value="">All outcomes</option>
+        {% for value in result.outcomes %}<option value="{{ value }}"{% if filters.outcome == value %} selected{% endif %}>{{ value }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="meap-filter-item">
+      <label for="audit-actor">Actor</label>
+      <select class="meap-select" id="audit-actor" name="actor_user_id">
+        <option value="">All actors</option>
+        {% for user_id, label in result.actors %}<option value="{{ user_id }}"{% if filters.actor_user_id == user_id %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="meap-filter-item">
+      <label for="audit-from">From</label>
+      <input class="meap-input" id="audit-from" type="date" name="date_from" value="{{ filters.date_from or '' }}">
+    </div>
+    <div class="meap-filter-item">
+      <label for="audit-to">To</label>
+      <input class="meap-input" id="audit-to" type="date" name="date_to" value="{{ filters.date_to or '' }}">
+    </div>
+    <div class="meap-filter-item">
+      <label for="audit-page-size">Rows</label>
+      <select class="meap-select" id="audit-page-size" name="page_size">
+        {% for value in [25, 50, 100] %}<option value="{{ value }}"{% if filters.page_size == value %} selected{% endif %}>{{ value }}</option>{% endfor %}
+      </select>
+    </div>
+    <button class="meap-btn meap-btn--primary" type="submit">Apply</button>
+    <a class="meap-btn" href="/audit" hx-get="/audit" hx-target="#main-content" hx-push-url="true">Reset</a>
+  </form>
+
+  <div class="meap-table-wrapper">
+    <table class="meap-table meap-audit-table">
+      <thead><tr><th>Time</th><th>Event</th><th>Outcome</th><th>Actor</th><th>Entity</th><th>Correlation ID</th><th class="meap-col--fit">Details</th></tr></thead>
+      <tbody>
+      {% if result.items %}
+        {% for row in result.items %}
+        <tr>
+          <td class="meap-nowrap meap-num">{{ row.event.occurred_at|datetime_utc }}</td>
+          <td><span class="meap-mono">{{ row.event.event_type }}</span></td>
+          <td>{% if row.event.outcome == 'SUCCEEDED' %}<span class="meap-badge meap-badge--success">Succeeded</span>{% else %}<span class="meap-badge meap-badge--critical">{{ row.event.outcome|title }}</span>{% endif %}</td>
+          <td>{% if row.actor_name %}{{ row.actor_name }}<div class="meap-muted">{{ row.actor_email }}</div>{% elif row.event.actor_user_id %}<span class="meap-mono">{{ row.event.actor_user_id }}</span>{% else %}<span class="meap-muted">System</span>{% endif %}</td>
+          <td>{% if row.event.entity_type or row.event.entity_id %}{{ row.event.entity_type or 'record' }}{% if row.event.entity_id %}<div class="meap-mono meap-muted">{{ row.event.entity_id }}</div>{% endif %}{% else %}<span class="meap-muted">—</span>{% endif %}</td>
+          <td>{% if row.event.correlation_id %}<a class="meap-mono" href="{{ query_url_path('/audit', current_query, set_={'q': row.event.correlation_id}, reset={'page': 1}) }}" hx-get="{{ query_url_path('/audit', current_query, set_={'q': row.event.correlation_id}, reset={'page': 1}) }}" hx-target="#main-content" hx-push-url="true">{{ row.event.correlation_id }}</a>{% else %}<span class="meap-muted">—</span>{% endif %}</td>
+          <td><a href="/audit/{{ row.event.event_id }}" hx-get="/audit/{{ row.event.event_id }}" hx-target="#main-content" hx-push-url="true">Inspect</a></td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="7"><div class="meap-empty-state"><div class="meap-empty-state-title">No audit events match these filters</div><p>Reset the filters or widen the date range.</p></div></td></tr>
+      {% endif %}
+      </tbody>
+    </table>
+    <div class="meap-pagination">
+      <span class="meap-pagination-info">Page {{ result.page }} of {{ result.total_pages }} ({{ result.total_count }} total)</span>
+      <div class="meap-pagination-controls">
+        {% if result.page > 1 %}<a href="{{ query_url_path('/audit', current_query, set_={'page': result.page - 1}) }}" hx-get="{{ query_url_path('/audit', current_query, set_={'page': result.page - 1}) }}" hx-target="#main-content" hx-push-url="true">← Previous</a>{% else %}<span class="disabled">← Previous</span>{% endif %}
+        {% if result.page < result.total_pages %}<a href="{{ query_url_path('/audit', current_query, set_={'page': result.page + 1}) }}" hx-get="{{ query_url_path('/audit', current_query, set_={'page': result.page + 1}) }}" hx-target="#main-content" hx-push-url="true">Next →</a>{% else %}<span class="disabled">Next →</span>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>

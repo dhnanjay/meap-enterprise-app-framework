@@ -1,0 +1,33 @@
+<div class="meap-page meap-object-page" id="audit-detail">
+  <nav class="meap-breadcrumb" aria-label="Breadcrumb"><a href="/audit" hx-get="/audit" hx-target="#main-content" hx-push-url="true">Audit center</a><span class="meap-breadcrumb-sep">/</span><span>Event</span></nav>
+  <div class="meap-page-header">
+    <div>
+      <div class="meap-eyebrow">Audit event</div>
+      <h1 class="meap-object-id meap-mono">{{ row.event.event_type }}</h1>
+      <p class="meap-page-subtitle meap-mono">{{ row.event.event_id }}</p>
+    </div>
+    <div class="meap-page-actions"><a class="meap-btn" href="/audit" hx-get="/audit" hx-target="#main-content" hx-push-url="true">Back to audit center</a></div>
+  </div>
+  <div class="meap-facts">
+    <div class="meap-fact"><span class="meap-fact-label">Occurred</span><span>{{ row.event.occurred_at|datetime_utc }}</span></div>
+    <div class="meap-fact"><span class="meap-fact-label">Outcome</span>{% if row.event.outcome == 'SUCCEEDED' %}<span class="meap-badge meap-badge--success">Succeeded</span>{% else %}<span class="meap-badge meap-badge--critical">{{ row.event.outcome|title }}</span>{% endif %}</div>
+    <div class="meap-fact"><span class="meap-fact-label">Actor</span><span>{{ row.actor_name or row.event.actor_user_id or 'System' }}</span>{% if row.actor_email %}<span class="meap-muted">{{ row.actor_email }}</span>{% endif %}</div>
+    <div class="meap-fact"><span class="meap-fact-label">Correlation ID</span><span class="meap-mono">{{ row.event.correlation_id or '—' }}</span></div>
+  </div>
+  <div class="meap-card-grid">
+    <section class="meap-card"><div class="meap-card-header"><h2 class="meap-card-title">Record context</h2></div><div class="meap-card-body">
+      <div class="meap-info-row"><span>Entity type</span><span>{{ row.event.entity_type or '—' }}</span></div>
+      <div class="meap-info-row"><span>Entity ID</span><span class="meap-mono">{{ row.event.entity_id or '—' }}</span></div>
+      <div class="meap-info-row"><span>Organization ID</span><span class="meap-mono">{{ row.event.organization_id }}</span></div>
+      <div class="meap-info-row"><span>Runtime profile</span><span>{{ row.event.runtime_profile or '—' }}</span></div>
+      <div class="meap-info-row"><span>Notebook version</span><span class="meap-mono">{{ row.event.notebook_version or '—' }}</span></div>
+    </div></section>
+    <section class="meap-card"><div class="meap-card-header"><h2 class="meap-card-title">Reproducibility</h2></div><div class="meap-card-body">
+      <div class="meap-info-row"><span>Data snapshot</span><span class="meap-mono">{{ row.event.data_snapshot_id or '—' }}</span></div>
+      <div class="meap-info-row"><span>Environment lock</span><span class="meap-mono">{{ row.event.environment_lock_hash or '—' }}</span></div>
+      <div class="meap-info-row"><span>Input artifacts</span><span class="meap-mono">{{ row.event.input_artifact_ids or '—' }}</span></div>
+      <div class="meap-info-row"><span>Output artifacts</span><span class="meap-mono">{{ row.event.output_artifact_ids or '—' }}</span></div>
+    </div></section>
+  </div>
+  <section class="meap-card"><div class="meap-card-header"><h2 class="meap-card-title">Event data</h2></div><div class="meap-card-body"><pre class="meap-json">{{ event_data_json }}</pre></div></section>
+</div>
