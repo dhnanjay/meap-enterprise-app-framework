@@ -13,21 +13,24 @@
     <div><span class="auth-label">Credential</span><strong class="auth-value">{% if credential and not credential.revoked_at %}TOTP enrolled{% else %}Not enrolled{% endif %}</strong></div>
   </div>
   <div class="auth-grid">
-    <div><span class="auth-label">Last sign-in</span><span class="auth-value">{{ last_login_at or 'Never' }}</span></div>
-    <div><span class="auth-label">Last activity</span><span class="auth-value">{{ last_seen_at or 'Never' }}</span></div>
-    <div><span class="auth-label">Authenticator enrolled</span><span class="auth-value">{{ credential.enrolled_at if credential else 'Never' }}</span></div>
-    <div><span class="auth-label">Recovery codes remaining</span><span class="auth-value">{{ recovery_codes_remaining }}</span></div>
+    <div><span class="auth-label">Last sign-in</span><span class="auth-value">{{ last_login_at|datetime_utc }}</span></div>
+    <div><span class="auth-label">Last activity</span><span class="auth-value">{{ last_seen_at|datetime_utc }}</span></div>
+    <div><span class="auth-label">Authenticator enrolled</span><span class="auth-value">{{ credential.enrolled_at|datetime_utc if credential else 'Never' }}</span></div>
+    <div><span class="auth-label">Unused backup sign-in codes</span><span class="auth-value">{{ recovery_codes_remaining }} available</span><div class="meap-text-muted">Each backup code can be used once if the authenticator is unavailable.</div></div>
   </div>
   <section class="auth-section auth-stack" aria-labelledby="role-title">
     <div><h2 id="role-title">Workspace role</h2><p class="meap-text-muted">Changing a role revokes the user's sessions so permissions cannot remain stale.</p></div>
+    {% if is_self %}<div class="auth-notice">This is your current account. Another workspace administrator must change your role, suspend your account, revoke your sessions, or reset your authenticator.</div>{% else %}
     <form class="auth-actions auth-actions--start" action="/auth/admin/users/{{ membership.membership_id }}/confirm/change-role" method="get">
       <label class="auth-field">New role<select name="role">{% for key, definition in roles.items() %}<option value="{{ key }}" {% if key == membership.role %}selected{% endif %}>{{ definition.display_name }}</option>{% endfor %}</select></label>
       <button class="meap-btn meap-btn--primary" type="submit">Review role change</button>
     </form>
+    {% endif %}
   </section>
   <section class="auth-section" aria-labelledby="security-title">
-    <h2 id="security-title">Access and credential operations</h2>
+    <h2 id="security-title">{{ 'Personal recovery' if is_self else 'Access and credential operations' }}</h2>
     <div class="auth-risk-list">
+      {% if not is_self %}
       {% if membership.status == 'suspended' %}
       <div class="auth-risk-row"><div><strong>Reactivate account</strong><div class="meap-text-muted">Allow sign-in with the existing credential.</div></div><a class="meap-btn meap-btn--quiet" href="/auth/admin/users/{{ membership.membership_id }}/confirm/reactivate">Review</a></div>
       {% elif membership.status == 'active' %}
@@ -35,6 +38,7 @@
       {% endif %}
       <div class="auth-risk-row"><div><strong>Revoke active sessions</strong><div class="meap-text-muted">Sign the user out everywhere without changing the credential.</div></div><a class="meap-btn meap-btn--quiet" href="/auth/admin/users/{{ membership.membership_id }}/confirm/revoke-sessions">Review</a></div>
       <div class="auth-risk-row"><div><strong>Reset and re-enroll authenticator</strong><div class="meap-text-muted">Invalidate TOTP, recovery codes, and sessions; issue a new enrollment link.</div></div><a class="meap-btn meap-btn--quiet" href="/auth/admin/users/{{ membership.membership_id }}/confirm/reenroll">Review</a></div>
+      {% endif %}
       <div class="auth-risk-row"><div><strong>Replace recovery codes</strong><div class="meap-text-muted">Invalidate all existing recovery codes and show replacements once.</div></div><a class="meap-btn meap-btn--quiet" href="/auth/admin/users/{{ membership.membership_id }}/confirm/recovery-codes">Review</a></div>
     </div>
   </section>

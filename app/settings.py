@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     allowed_email_domains: str = ""
     session_lifetime_minutes: int = 480
     session_absolute_lifetime_hours: int = 24
+    admin_reauthentication_minutes: int = 10
     enrollment_lifetime_minutes: int = 15
 
     # These defaults are development-only. Production startup rejects them.

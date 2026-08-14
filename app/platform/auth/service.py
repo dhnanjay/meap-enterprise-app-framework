@@ -667,7 +667,14 @@ class AuthService:
         self.db.commit()
         return LoginResult(raw_session, session, method == "recovery_code")
 
-    def reauthenticate_administrator(self, *, user_id: str, code: str, ip: str) -> bool:
+    def reauthenticate_administrator(
+        self,
+        *,
+        user_id: str,
+        code: str,
+        ip: str,
+        session_id: str | None = None,
+    ) -> bool:
         """Require a fresh local credential before a privileged operation."""
         user = self.db.get(User, user_id)
         if user is None or not user.is_active:
@@ -694,16 +701,36 @@ class AuthService:
             self._record_failure(keys)
             return False
         self.db.execute(delete(LoginThrottle).where(LoginThrottle.throttle_key.in_(keys)))
+        session = self.db.get(AuthSession, session_id) if session_id else None
+        if (
+            session is not None
+            and session.user_id == user_id
+            and session.revoked_at is None
+        ):
+            session.reauthenticated_at = now_utc()
         AuditService(self.db).record(
             event_type="auth.admin.reauthenticated",
             actor_user_id=user_id,
-            entity_type="user",
-            entity_id=user_id,
-            event_data={"method": method},
+            entity_type="session" if session is not None else "user",
+            entity_id=session.session_id if session is not None else user_id,
+            event_data={
+                "method": method,
+                "verification_window_minutes": self.settings.admin_reauthentication_minutes,
+            },
             commit=False,
         )
         self.db.commit()
         return True
+
+    def administrator_reauthentication_is_current(self, session_id: str | None) -> bool:
+        if not session_id:
+            return False
+        session = self.db.get(AuthSession, session_id)
+        if session is None or session.revoked_at is not None or session.reauthenticated_at is None:
+            return False
+        return aware(session.reauthenticated_at) > now_utc() - timedelta(
+            minutes=self.settings.admin_reauthentication_minutes
+        )
 
     def _is_workspace_admin(self, membership: Membership) -> bool:
         return any(
@@ -766,6 +793,8 @@ class AuthService:
     def change_membership_role(
         self, membership: Membership, *, role_key: str, actor_user_id: str
     ) -> None:
+        if membership.user_id == actor_user_id:
+            raise ValueError("Another administrator must change your workspace role")
         current_roles = tuple(
             sorted(assignment.role.role_key for assignment in membership.role_assignments)
         )
@@ -800,6 +829,8 @@ class AuthService:
             raise ValueError("Unsupported membership status")
         previous = membership.status
         if status == "suspended":
+            if membership.user_id == actor_user_id:
+                raise ValueError("Another administrator must suspend your account")
             if previous != "active":
                 raise ValueError("Only an active membership can be suspended")
             self._protect_last_admin(membership)
@@ -836,6 +867,8 @@ class AuthService:
     def begin_reenrollment(
         self, membership: Membership, *, actor_user_id: str
     ) -> EnrollmentResult:
+        if membership.user_id == actor_user_id:
+            raise ValueError("Another administrator must reset your authenticator")
         self._protect_last_admin(membership)
         moment = now_utc()
         self.db.execute(

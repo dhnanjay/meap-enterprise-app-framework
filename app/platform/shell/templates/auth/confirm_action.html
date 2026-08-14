@@ -3,13 +3,11 @@
 <section class="auth-panel auth-stack" aria-labelledby="confirm-title">
   <div><div class="meap-overline">Sensitive operation</div><h1 id="confirm-title">{{ action_definition.title }}</h1><p>{{ membership.user.display_name }} · {{ membership.user.email }}</p></div>
   {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
-  <div class="auth-warning"><strong>Effect of this change</strong><br>{{ action_definition.warning }}{% if role_definition %}<br><br>New role: <strong>{{ role_definition.display_name }}</strong>{% endif %}{% if navigation_item %}<br><br>{{ navigation_item.label }} will be <strong>{{ 'enabled' if enabled else 'disabled' }}</strong>.{% endif %}</div>
+  <div class="auth-warning"><strong>Effect of this change</strong><br>{{ action_definition.warning }}{% if role_definition %}<br><br>New role: <strong>{{ role_definition.display_name }}</strong>{% endif %}</div>
   <form class="auth-stack" action="/auth/admin/users/{{ membership.membership_id }}/confirm/{{ action }}" method="post">
     <input type="hidden" name="csrf_token" value="{{ current_user.csrf_token }}">
     {% if role %}<input type="hidden" name="role" value="{{ role }}">{% endif %}
-    {% if permission %}<input type="hidden" name="permission" value="{{ permission }}">{% endif %}
-    {% if enabled is not none %}<input type="hidden" name="enabled" value="{{ 'true' if enabled else 'false' }}">{% endif %}
-    <label class="auth-field">Your current authenticator or recovery code<input type="text" name="admin_code" inputmode="numeric" autocomplete="one-time-code" required><span class="meap-text-muted">A fresh code proves that the signed-in administrator is authorizing this operation. If you just signed in with TOTP, wait for the six-digit code to change.</span></label>
+    {% if requires_reauthentication %}<label class="auth-field">Your current authenticator or backup sign-in code<input type="text" name="admin_code" inputmode="numeric" autocomplete="one-time-code" required><span class="meap-text-muted">Required once for a {{ verification_minutes }}-minute sensitive-administration window. If you just signed in with TOTP, wait for the six-digit code to change.</span></label>{% else %}<div class="auth-success">Administrator identity recently verified. No additional code is needed for this change.</div>{% endif %}
     <label class="auth-confirm"><input type="checkbox" name="confirmation" value="confirmed" required><span>I understand the effect and confirm this change.</span></label>
     <div class="auth-actions"><a class="meap-btn meap-btn--quiet" href="/auth/admin/users/{{ membership.membership_id }}">Cancel</a><button class="meap-btn meap-btn--primary" type="submit">{{ action_definition.button }}</button></div>
   </form>

@@ -406,6 +406,7 @@ Settings are loaded from environment variables with typed defaults (§55):
 | `MEAP_AUTH_METHOD` | `local_totp` | Active authentication adapter |
 | `MEAP_ADMISSION_MODE` | `invite_only` | Administrator-issued enrollment; `disabled` stops new enrollment |
 | `MEAP_ALLOWED_EMAIL_DOMAINS` | empty | Optional comma-separated restriction on administrator-asserted addresses |
+| `MEAP_ADMIN_REAUTHENTICATION_MINUTES` | `10` | Server-side verification window for high-impact administrator operations |
 | `MEAP_SESSION_HMAC_KEY` | local-only value | Independent server-side session token HMAC key |
 | `MEAP_CSRF_KEY` | local-only value | Independent signing key for short-lived pre-authentication form tokens |
 | `MEAP_TOKEN_HMAC_KEY` | local-only value | Independent enrollment/recovery token HMAC key |

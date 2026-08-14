@@ -159,15 +159,30 @@ def test_sensitive_admin_actions_require_fresh_reauthentication(db_session, auth
     service, administrator, _secret, recovery_codes = bootstrap_and_enroll(
         db_session, auth_settings
     )
-    assert service.reauthenticate_administrator(
-        user_id=administrator.user_id,
+    login = service.authenticate(
+        email=administrator.user.email,
         code=recovery_codes[0],
         ip="127.0.0.1",
+        user_agent="pytest",
+    )
+    assert login is not None
+    assert not service.administrator_reauthentication_is_current(
+        login.session.session_id
+    )
+    assert service.reauthenticate_administrator(
+        user_id=administrator.user_id,
+        code=recovery_codes[1],
+        ip="127.0.0.1",
+        session_id=login.session.session_id,
+    )
+    assert service.administrator_reauthentication_is_current(
+        login.session.session_id
     )
     assert not service.reauthenticate_administrator(
         user_id=administrator.user_id,
-        code=recovery_codes[0],
+        code=recovery_codes[1],
         ip="127.0.0.1",
+        session_id=login.session.session_id,
     )
     events = db_session.scalars(
         select(AuditEvent).where(
@@ -185,21 +200,46 @@ def test_last_active_administrator_cannot_be_removed_or_reset(db_session, auth_s
         service.change_membership_role(
             administrator,
             role_key="operator",
-            actor_user_id=administrator.user_id,
+            actor_user_id="another-administrator",
         )
     with pytest.raises(ValueError, match="retain at least one"):
         service.set_membership_status(
             administrator,
             status="suspended",
-            actor_user_id=administrator.user_id,
+            actor_user_id="another-administrator",
         )
     with pytest.raises(ValueError, match="retain at least one"):
         service.begin_reenrollment(
             administrator,
-            actor_user_id=administrator.user_id,
+            actor_user_id="another-administrator",
         )
     assert administrator.status == "active"
     assert administrator.role == "workspace_admin"
+
+
+def test_administrator_cannot_apply_self_defeating_lifecycle_actions(
+    db_session, auth_settings
+):
+    service, administrator, _secret, _codes = bootstrap_and_enroll(
+        db_session, auth_settings
+    )
+    with pytest.raises(ValueError, match="Another administrator"):
+        service.change_membership_role(
+            administrator,
+            role_key="operator",
+            actor_user_id=administrator.user_id,
+        )
+    with pytest.raises(ValueError, match="Another administrator"):
+        service.set_membership_status(
+            administrator,
+            status="suspended",
+            actor_user_id=administrator.user_id,
+        )
+    with pytest.raises(ValueError, match="Another administrator"):
+        service.begin_reenrollment(
+            administrator,
+            actor_user_id=administrator.user_id,
+        )
 
 
 def test_role_change_and_suspension_revoke_sessions_immediately(db_session, auth_settings):
@@ -490,24 +530,12 @@ def test_admin_account_panel_requires_reauthentication_for_recovery_rotation(
         assert "Users and memberships" in users.text
         assert "Manage" in users.text
 
-        access_confirmation = client.get(
-            f"/auth/admin/users/{membership_id}/confirm/navigation-access",
-            params={
-                "permission": "bank_reconciliation.reconciliation.view",
-                "enabled": "false",
-            },
-        )
-        assert access_confirmation.status_code == 200
-        assert "Confirm application-access change" in access_confirmation.text
-        access_csrf = re.search(
-            r'name="csrf_token" value="([^"]+)"', access_confirmation.text
-        ).group(1)
         disabled = client.post(
-            f"/auth/admin/users/{membership_id}/confirm/navigation-access",
+            f"/auth/admin/users/{membership_id}/navigation-access",
             data={
-                "csrf_token": access_csrf,
-                "admin_code": recovery_codes[1],
-                "confirmation": "confirmed",
+                "csrf_token": re.search(
+                    r'name="csrf_token" value="([^"]+)"', users.text
+                ).group(1),
                 "permission": "bank_reconciliation.reconciliation.view",
                 "enabled": "false",
             },
@@ -518,8 +546,12 @@ def test_admin_account_panel_requires_reauthentication_for_recovery_rotation(
 
         detail = client.get(f"/auth/admin/users/{membership_id}")
         assert detail.status_code == 200
-        assert "Access and credential operations" in detail.text
-        assert "Recovery codes remaining" in detail.text
+        assert "Personal recovery" in detail.text
+        assert "Unused backup sign-in codes" in detail.text
+        assert "Another workspace administrator must change your role" in detail.text
+        assert "Suspend account" not in detail.text
+        assert "Reset and re-enroll authenticator" not in detail.text
+        assert re.search(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC", detail.text)
 
         confirmation = client.get(
             f"/auth/admin/users/{membership_id}/confirm/recovery-codes"
@@ -533,10 +565,16 @@ def test_admin_account_panel_requires_reauthentication_for_recovery_rotation(
             f"/auth/admin/users/{membership_id}/confirm/recovery-codes",
             data={
                 "csrf_token": session_csrf,
-                "admin_code": recovery_codes[2],
+                "admin_code": recovery_codes[1],
                 "confirmation": "confirmed",
             },
         )
         assert replaced.status_code == 200
         assert "Replacement recovery codes" in replaced.text
         assert "displayed again" in replaced.text
+
+        verified_confirmation = client.get(
+            f"/auth/admin/users/{membership_id}/confirm/recovery-codes"
+        )
+        assert "No additional code is needed" in verified_confirmation.text
+        assert 'name="admin_code"' not in verified_confirmation.text

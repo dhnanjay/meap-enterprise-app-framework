@@ -11,7 +11,7 @@
     <label class="auth-field">Email address<input type="email" name="email" required></label>
     <label class="auth-field">Display name<input type="text" name="display_name" required></label>
     <label class="auth-field">Role<select name="role"><option value="operator">Operator</option><option value="analyst">Analyst</option><option value="auditor">Auditor</option><option value="viewer">Viewer</option><option value="workspace_admin">Workspace administrator</option></select></label>
-    <label class="auth-field">Your current authenticator or recovery code<input type="text" name="admin_code" inputmode="numeric" autocomplete="one-time-code" required></label>
+    {% if requires_reauthentication %}<label class="auth-field">Your current authenticator or backup sign-in code<input type="text" name="admin_code" inputmode="numeric" autocomplete="one-time-code" required><span class="meap-text-muted">Required once; sensitive administration remains verified for {{ verification_minutes }} minutes.</span></label>{% else %}<div class="auth-success">Administrator identity recently verified. Sensitive changes remain available without another code for {{ verification_minutes }} minutes.</div>{% endif %}
     <label class="auth-confirm"><input type="checkbox" name="confirmation" value="confirmed" required><span>I confirm that I am asserting this user's identity and assigning workspace access.</span></label>
     <button class="meap-btn meap-btn--primary" type="submit">Create enrollment link</button>
   </form>
@@ -27,7 +27,8 @@
     {% for membership in memberships %}
     <tr><td>{{ membership.user.display_name }}<br><span class="meap-text-muted">{{ membership.role }}</span></td>
       {% for item in navigation_items %}{% set permission = item.required_permission %}{% set has_access = permission in membership_permissions[membership.membership_id] %}<td>
-        <form action="/auth/admin/users/{{ membership.membership_id }}/confirm/navigation-access" method="get">
+        <form action="/auth/admin/users/{{ membership.membership_id }}/navigation-access" method="post">
+          <input type="hidden" name="csrf_token" value="{{ current_user.csrf_token }}">
           <input type="hidden" name="permission" value="{{ permission }}">
           <input type="hidden" name="enabled" value="{{ 'false' if has_access else 'true' }}">
           <button class="meap-btn meap-btn--quiet" type="submit" aria-label="{{ 'Disable' if has_access else 'Enable' }} {{ item.label }} for {{ membership.user.display_name }}">{{ 'Enabled' if has_access else 'Disabled' }}</button>

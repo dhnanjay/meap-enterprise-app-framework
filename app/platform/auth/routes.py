@@ -56,6 +56,10 @@ def _access_admin_context(
         "error": error,
         "message": message,
         "role_definitions": DEFAULT_ROLE_BUNDLES,
+        "requires_reauthentication": not service.administrator_reauthentication_is_current(
+            user.session_id
+        ),
+        "verification_minutes": request.app.state.settings.admin_reauthentication_minutes,
     }
 
 
@@ -70,6 +74,24 @@ def _admin_membership(db: Session, user: UserContext, membership_id: str) -> Mem
     if membership is None or membership.organization_id != user.organization_id:
         return None
     return membership
+
+
+def _ensure_administrator_reauthenticated(
+    request: Request,
+    service: AuthService,
+    user: UserContext,
+    code: str,
+) -> bool:
+    if service.administrator_reauthentication_is_current(user.session_id):
+        return True
+    if not code:
+        return False
+    return service.reauthenticate_administrator(
+        user_id=user.user_id,
+        code=code,
+        ip=request.client.host if request.client else "unknown",
+        session_id=user.session_id,
+    )
 
 
 def _account_context(
@@ -119,6 +141,7 @@ def _account_context(
         "active_sessions": active_sessions,
         "credential": credential,
         "recovery_codes_remaining": recovery_codes_remaining,
+        "is_self": membership.user_id == user.user_id,
         "error": error,
     }
 
@@ -153,11 +176,6 @@ _ADMIN_ACTIONS = {
         "title": "Confirm recovery-code replacement",
         "warning": "Every existing recovery code will stop working. The replacements are displayed only once.",
         "button": "Replace recovery codes",
-    },
-    "navigation-access": {
-        "title": "Confirm application-access change",
-        "warning": "This changes both navigation visibility and direct route access for the selected application.",
-        "button": "Change application access",
     },
 }
 
@@ -378,7 +396,7 @@ def invite_user(
     email: str = Form(...),
     display_name: str = Form(...),
     role: str = Form("member"),
-    admin_code: str = Form(...),
+    admin_code: str = Form(""),
     confirmation: str = Form(...),
     csrf_token: str = Form(...),
     user: UserContext = Depends(get_current_user),
@@ -394,10 +412,8 @@ def invite_user(
     try:
         if confirmation != "confirmed":
             raise ValueError("Confirm that you intend to create this account")
-        if not service.reauthenticate_administrator(
-            user_id=user.user_id,
-            code=admin_code,
-            ip=request.client.host if request.client else "unknown",
+        if not _ensure_administrator_reauthenticated(
+            request, service, user, admin_code
         ):
             raise ValueError("Administrator reauthentication was not accepted")
         result = service.invite_user(
@@ -435,8 +451,6 @@ def confirm_admin_action(
     membership_id: str,
     action: str,
     role: str | None = None,
-    permission: str | None = None,
-    enabled: bool | None = None,
     user: UserContext = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -446,18 +460,7 @@ def confirm_admin_action(
         return _auth_page(request, "auth/forbidden.html", {}, 403)
     if action == "change-role" and role not in DEFAULT_ROLE_BUNDLES:
         return _auth_page(request, "auth/forbidden.html", {}, 403)
-    navigation_item = None
-    if action == "navigation-access":
-        navigation_item = next(
-            (
-                item
-                for item in request.app.state.registry.get_configurable_navigation()
-                if item.get("required_permission") == permission
-            ),
-            None,
-        )
-        if navigation_item is None or enabled is None:
-            return _auth_page(request, "auth/forbidden.html", {}, 403)
+    service = AuthService(db, request.app.state.settings)
     return _auth_page(
         request,
         "auth/confirm_action.html",
@@ -468,9 +471,10 @@ def confirm_admin_action(
             "action_definition": action_definition,
             "role": role,
             "role_definition": DEFAULT_ROLE_BUNDLES.get(role or ""),
-            "permission": permission,
-            "enabled": enabled,
-            "navigation_item": navigation_item,
+            "requires_reauthentication": not service.administrator_reauthentication_is_current(
+                user.session_id
+            ),
+            "verification_minutes": request.app.state.settings.admin_reauthentication_minutes,
             "error": None,
         },
     )
@@ -481,12 +485,10 @@ def perform_admin_action(
     request: Request,
     membership_id: str,
     action: str,
-    admin_code: str = Form(...),
+    admin_code: str = Form(""),
     confirmation: str = Form(...),
     csrf_token: str = Form(...),
     role: str | None = Form(None),
-    permission: str | None = Form(None),
-    enabled: bool | None = Form(None),
     user: UserContext = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -496,16 +498,6 @@ def perform_admin_action(
         return _auth_page(request, "auth/forbidden.html", {}, 403)
     if not _valid_session_csrf(user, csrf_token):
         return _auth_page(request, "auth/forbidden.html", {}, 403)
-    navigation_item = None
-    if action == "navigation-access":
-        navigation_item = next(
-            (
-                item
-                for item in request.app.state.registry.get_configurable_navigation()
-                if item.get("required_permission") == permission
-            ),
-            None,
-        )
     service = AuthService(db, request.app.state.settings)
     error = None
     result_title = None
@@ -515,12 +507,15 @@ def perform_admin_action(
             raise ValueError("Confirm that you understand the effect of this change")
         if action == "change-role" and role not in DEFAULT_ROLE_BUNDLES:
             raise ValueError("Select a valid workspace role")
-        if action == "navigation-access" and (navigation_item is None or enabled is None):
-            raise ValueError("Select a registered application access entry")
-        if not service.reauthenticate_administrator(
-            user_id=user.user_id,
-            code=admin_code,
-            ip=request.client.host if request.client else "unknown",
+        if membership.user_id == user.user_id and action in {
+            "change-role",
+            "suspend",
+            "revoke-sessions",
+            "reenroll",
+        }:
+            raise ValueError("Another administrator must perform this operation on your account")
+        if not _ensure_administrator_reauthenticated(
+            request, service, user, admin_code
         ):
             raise ValueError("Administrator reauthentication was not accepted")
 
@@ -559,14 +554,6 @@ def perform_admin_action(
                 operation_source="admin_panel",
             )
             result_title = "Replacement recovery codes"
-        else:
-            service.set_membership_permission(
-                membership=membership,
-                permission=permission or "",
-                enabled=bool(enabled),
-                actor_user_id=user.user_id,
-                registered_permissions=frozenset(request.app.state.registry.all_permissions),
-            )
     except ValueError as exc:
         error = str(exc)
         AuditService(db).record(
@@ -590,9 +577,10 @@ def perform_admin_action(
                 "action_definition": action_definition,
                 "role": role,
                 "role_definition": DEFAULT_ROLE_BUNDLES.get(role or ""),
-                "permission": permission,
-                "enabled": enabled,
-                "navigation_item": navigation_item,
+                "requires_reauthentication": not service.administrator_reauthentication_is_current(
+                    user.session_id
+                ),
+                "verification_minutes": request.app.state.settings.admin_reauthentication_minutes,
                 "error": error,
             },
             400,
@@ -612,3 +600,29 @@ def perform_admin_action(
     return RedirectResponse(
         f"/auth/admin/users/{membership_id}", status_code=303
     )
+
+
+@router.post("/admin/users/{membership_id}/navigation-access")
+def set_navigation_access(
+    request: Request,
+    membership_id: str,
+    permission: str = Form(...),
+    enabled: bool = Form(...),
+    csrf_token: str = Form(...),
+    user: UserContext = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    membership = _admin_membership(db, user, membership_id)
+    if membership is None or not _valid_session_csrf(user, csrf_token):
+        return _auth_page(request, "auth/forbidden.html", {}, 403)
+    try:
+        AuthService(db, request.app.state.settings).set_membership_permission(
+            membership=membership,
+            permission=permission,
+            enabled=enabled,
+            actor_user_id=user.user_id,
+            registered_permissions=frozenset(request.app.state.registry.all_permissions),
+        )
+    except ValueError:
+        return _auth_page(request, "auth/forbidden.html", {}, 403)
+    return RedirectResponse("/auth/admin/users", status_code=303)

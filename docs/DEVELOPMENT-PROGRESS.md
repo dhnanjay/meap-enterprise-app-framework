@@ -219,3 +219,13 @@ Extended the dynamic Users access matrix into a complete, self-hosted account-op
 - Corrected both confirmation-route lookups to consume the navigation registry's documented dictionary contract rather than treating entries as objects.
 - Added end-to-end regression coverage for opening the access confirmation screen, reauthenticating the administrator, disabling the application, receiving a successful redirect, and receiving `403` on the disabled direct route.
 - No database or persisted access records required repair; the failure occurred before the change was submitted.
+
+## 2026-08-13 — Account-administration friction correction
+
+- Reclassified registered-application visibility as a reversible, audited access-matrix change and restored its immediate one-click POST behavior with session CSRF validation.
+- Added a configurable, server-side administrator verification window (`MEAP_ADMIN_REAUTHENTICATION_MINUTES`, default 10 minutes) for genuinely high-impact actions, replacing repeated authenticator prompts during one administration task.
+- Persisted the verification timestamp on the opaque server-side session through Alembic revision `7f6a2a43d9c1`; no verification state is trusted from the browser.
+- Removed self-defeating role, suspension, all-session revocation, and authenticator-reset controls from the current administrator's account page and added matching service/route rejection.
+- Retained personal recovery-code replacement and renamed the status to **Unused backup sign-in codes**, with an explanation that each code works once.
+- Replaced raw microsecond timestamps with concise UTC display values.
+- Expanded tests for the verification window, immediate access toggle, direct-route denial, self-action protections, clarified UI, and code-free follow-up operations inside the window.

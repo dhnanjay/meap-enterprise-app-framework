@@ -14,6 +14,7 @@ Individual developers should not repeatedly implement HX-Request checks.
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -55,6 +56,17 @@ templates.env.loader = ChoiceLoader(
 # Register query_state helpers as Jinja globals
 templates.env.globals["query_url"] = query_url
 templates.env.globals["query_url_path"] = query_url_path
+
+
+def _datetime_utc(value: datetime | None) -> str:
+    if value is None:
+        return "Never"
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+
+templates.env.filters["datetime_utc"] = _datetime_utc
 
 
 def is_htmx_request(request: Request) -> bool:

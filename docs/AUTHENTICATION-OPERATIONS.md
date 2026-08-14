@@ -13,7 +13,7 @@ MEAP's built-in authentication is intended for controlled deployments where an a
 - There is no public registration or automatic domain admission.
 - Only an administrator can create a membership and enrollment link.
 - `MEAP_ALLOWED_EMAIL_DOMAINS` can restrict which domains administrators may enter; this is a restriction, not mailbox verification.
-- Sensitive administrator actions require a fresh authenticator or recovery code on a dedicated confirmation screen.
+- High-impact administrator actions require a recent authenticator or backup-code verification on a dedicated confirmation screen. One successful verification opens a short server-side administration window.
 - Suspending a membership and changing a role revoke active sessions immediately.
 - The last active workspace administrator cannot be demoted, suspended, or reset for re-enrollment.
 - Local TOTP credentials are stored separately from future OIDC identities.
@@ -76,6 +76,7 @@ MEAP_ADMISSION_MODE=invite_only
 MEAP_ALLOWED_EMAIL_DOMAINS=example.com,subsidiary.example
 MEAP_SESSION_LIFETIME_MINUTES=480
 MEAP_SESSION_ABSOLUTE_LIFETIME_HOURS=24
+MEAP_ADMIN_REAUTHENTICATION_MINUTES=10
 MEAP_ENROLLMENT_LIFETIME_MINUTES=15
 ```
 
@@ -123,12 +124,14 @@ The available operations are:
 - Reactivate a suspended membership. The existing authenticator remains usable.
 - Revoke all active sessions without changing the credential.
 - Reset and re-enroll the authenticator. TOTP, recovery codes, and sessions are invalidated; a new 15-minute enrollment link is displayed once.
-- Replace recovery codes. Existing codes are invalidated and ten replacements are displayed once.
-- Enable or disable a registered application. The access matrix discovers entries from the navigation registry and the confirmation changes both link visibility and direct-route authorization.
+- Replace recovery codes. Existing codes are invalidated and ten replacements are displayed once. The account page labels these as **unused backup sign-in codes**: each one can replace the authenticator for one sign-in and is then consumed.
+- Enable or disable a registered application. This reversible access-matrix toggle takes effect immediately, changes both link visibility and direct-route authorization, and is audited. It does not require an additional authenticator code.
 
-Each operation has a review page, requires an explicit confirmation, requires the acting administrator's fresh TOTP or recovery code, and writes an audit event. A TOTP time step cannot be replayed: if the administrator used the current six-digit code to sign in, wait for it to change before confirming an operation.
+Role, lifecycle, session, authenticator, recovery, and invitation operations have explicit confirmation and audit handling. The first high-impact operation requires the acting administrator's TOTP or backup code; successful verification is stored only on the current server-side session and remains valid for `MEAP_ADMIN_REAUTHENTICATION_MINUTES` (10 minutes by default). Further sensitive operations in that window do not request another code. A TOTP time step cannot be replayed: if the administrator used the current six-digit code to sign in, wait for it to change before beginning the verification window.
 
 MEAP prevents the last active workspace administrator from being demoted, suspended, or reset for re-enrollment. Create and enroll a second workspace administrator before performing one of those operations on the first.
+
+The current administrator cannot change their own role, suspend their own membership, revoke all of their own sessions, or reset their own authenticator through account administration. Those controls are not rendered on the current account and the service layer rejects crafted requests. Another workspace administrator must perform them. Personal recovery-code replacement remains available.
 
 ### Lost device and offboarding
 
